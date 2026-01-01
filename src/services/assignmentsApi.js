@@ -1,20 +1,70 @@
-import { apiFetch } from './apiClient';
+import { supabase } from './supabase';
 
-function mapAssignment(raw) {
-  return {
-    id: raw.id,
-    title: raw.title,
-    description: raw.description || '',
-    focus: raw.focus || 'General',
-    createdAt: raw.createdAt || raw.created_at || null,
-    updatedAt: raw.updatedAt || raw.updated_at || null
-  };
+export async function fetchAssignments(filters = {}) {
+  let query = supabase.from('assignments').select('*');
+
+  if (filters.focus) {
+    query = query.eq('focus', filters.focus);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+  return data;
 }
 
-export async function fetchAssignments() {
-  // Calls the same Express route your web app uses → which then talks to Supabase
-  const data = await apiFetch('/assignments');
-  return Array.isArray(data.assignments) ? data.assignments.map(mapAssignment) : [];
+export async function getAssignment(assignmentId) {
+  const { data, error } = await supabase
+    .from('assignments')
+    .select('*')
+    .eq('id', assignmentId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return data;
 }
 
+export async function getSubmissions(assignmentId, userId) {
+  const { data, error } = await supabase
+    .from('submissions')
+    .select(`
+      *,
+      grades (
+        id,
+        score,
+        feedback,
+        created_at
+      )
+    `)
+    .eq('assignment_id', assignmentId)
+    .eq('user_id', userId);
 
+  if (error) {
+    throw error;
+  }
+  
+  // Transform data to make grade easier to access
+  return data.map(submission => ({
+    ...submission,
+    grade: submission.grades?.[0] || null
+  }));
+}
+
+export async function createOrUpdateSubmission(assignmentId, userId, submissionData) {
+    const { data, error } = await supabase
+      .from('submissions')
+      .upsert({
+        assignment_id: assignmentId,
+        user_id: userId,
+        ...submissionData
+      }, { onConflict: ['assignment_id', 'user_id'] });
+
+    if (error) {
+        throw error;
+    }
+    return data;
+}

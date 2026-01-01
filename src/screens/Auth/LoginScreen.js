@@ -1,31 +1,49 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { apiFetch, saveToken } from '../../services/apiClient';
+import { supabase } from '../../services/supabase';
 
 export default function LoginScreen({ navigation }) {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!username || !password) {
-      Alert.alert('Login', 'Isi username dan password terlebih dahulu.');
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter an email and password.');
       return;
     }
 
     try {
       setLoading(true);
-      // backend web app login route expects username/password (see legacy/web app)
-      const data = await apiFetch('/auth/login', {
-        method: 'POST',
-        body: { username, password }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        Alert.alert('Login Failed', error.message);
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: 'exp://localhost:8081', // For Expo Go during development
+          // For production: use your custom scheme or deep link
+        },
       });
 
-      await saveToken(data.token);
-      Alert.alert('Sukses', 'Berhasil login.');
-      navigation.replace('MainTabs');
+      if (error) {
+        Alert.alert('Google Sign-In Failed', error.message);
+      }
+      // Note: OAuth in React Native requires additional setup with deep linking
+      // The user will be redirected to browser, then back to app after authentication
     } catch (err) {
-      Alert.alert('Gagal', err.message || 'Login gagal');
+      Alert.alert('Error', err.message || 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
@@ -33,76 +51,63 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>SILab Suite</Text>
-      <Text style={styles.subtitle}>Virtual Lab Environment (Mobile)</Text>
+      <Text style={styles.title}>SILab Mobile</Text>
+      <Text style={styles.subtitle}>Virtual Lab Environment</Text>
+      
+      <View style={styles.form}>
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor="#6b7280"
+          autoCapitalize="none"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          placeholderTextColor="#6b7280"
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
+        <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? 'Processing...' : 'Sign In'}</Text>
+        </TouchableOpacity>
+      </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Username"
-        autoCapitalize="none"
-        value={username}
-        onChangeText={setUsername}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+      <View style={styles.divider}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>OR</Text>
+        <View style={styles.dividerLine} />
+      </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? 'Memproses...' : 'Masuk'}</Text>
+      <TouchableOpacity style={styles.googleButton} onPress={handleGoogleSignIn} disabled={loading}>
+        <Text style={styles.googleButtonText}>Sign in with Google</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => navigation.navigate('Register')} style={{ marginTop: 20 }}>
+        <Text style={styles.registerText}>
+          Don't have an account? <Text style={{ color: '#facc15', fontWeight: 'bold' }}>Register</Text>
+        </Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#050816',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#facc15',
-    marginBottom: 4
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginBottom: 32,
-    textAlign: 'center'
-  },
-  input: {
-    width: '100%',
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#4b5563',
-    paddingHorizontal: 14,
-    marginBottom: 14,
-    color: '#e5e7eb',
-    backgroundColor: '#020617'
-  },
-  button: {
-    width: '100%',
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: '#f59e0b',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6
-  },
-  buttonText: {
-    color: '#111827',
-    fontWeight: '700',
-    fontSize: 16
-  }
+  container: { flex: 1, backgroundColor: '#020617', justifyContent: 'center', padding: 24 },
+  title: { fontSize: 32, fontWeight: 'bold', color: '#facc15', textAlign: 'center', marginBottom: 8 },
+  subtitle: { fontSize: 16, color: '#9ca3af', textAlign: 'center', marginBottom: 48 },
+  form: { gap: 16 },
+  input: { backgroundColor: '#111827', color: '#fff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#374151' },
+  button: { backgroundColor: '#facc15', padding: 16, borderRadius: 12, alignItems: 'center' },
+  buttonText: { color: '#020617', fontWeight: 'bold', fontSize: 16 },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 24 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#374151' },
+  dividerText: { color: '#9ca3af', paddingHorizontal: 16, fontSize: 14 },
+  googleButton: { backgroundColor: '#4285F4', padding: 16, borderRadius: 12, alignItems: 'center' },
+  googleButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  registerText: { color: '#9ca3af', textAlign: 'center', marginTop: 10 }
 });
-
-

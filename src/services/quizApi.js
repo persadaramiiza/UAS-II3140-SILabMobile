@@ -1,61 +1,78 @@
-import { apiFetch } from './apiClient';
+import { supabase } from './supabase';
 
 export async function listQuizTopics({ includeQuestions = false } = {}) {
-  const params = includeQuestions ? '?includeQuestions=1' : '';
-  const data = await apiFetch(`/quizzes/topics${params}`);
-  return Array.isArray(data.topics) ? data.topics : [];
+  let query = supabase
+    .from('quiz_topics')
+    .select(includeQuestions ? '*,quiz_questions(*)' : '*');
+  
+  const { data, error } = await query.order('created_at', { ascending: false });
+
+  if (error) throw error;
+  
+  // Get question count for each topic
+  const topicsWithCount = await Promise.all(
+    data.map(async (topic) => {
+      const { count } = await supabase
+        .from('quiz_questions')
+        .select('*', { count: 'exact', head: true })
+        .eq('topic_id', topic.id);
+      
+      return {
+        ...topic,
+        questionCount: count || 0
+      };
+    })
+  );
+  
+  return topicsWithCount;
 }
 
 export async function getQuizTopic(topicId, { includeQuestions = true } = {}) {
-  const params = includeQuestions ? '?includeQuestions=1' : '';
-  const data = await apiFetch(`/quizzes/topics/${topicId}${params}`);
-  return data.topic;
+  let query = supabase.from('quiz_topics').select(includeQuestions ? '*,quiz_questions(*)' : '*').eq('id', topicId).single();
+  const { data, error } = await query;
+  
+  if (error) throw error;
+  return data;
 }
 
 export async function createQuizTopic(payload) {
-  const data = await apiFetch('/quizzes/topics', {
-    method: 'POST',
-    body: payload
-  });
-  return data.topic;
+  const { data, error } = await supabase.from('quiz_topics').insert(payload).single();
+  if (error) throw error;
+  return data;
 }
 
 export async function updateQuizTopic(topicId, payload) {
-  const data = await apiFetch(`/quizzes/topics/${topicId}`, {
-    method: 'PUT',
-    body: payload
-  });
-  return data.topic;
+  const { data, error } = await supabase.from('quiz_topics').update(payload).eq('id', topicId).single();
+  if (error) throw error;
+  return data;
 }
 
 export async function deleteQuizTopic(topicId) {
-  await apiFetch(`/quizzes/topics/${topicId}`, { method: 'DELETE' });
+  const { error } = await supabase.from('quiz_topics').delete().eq('id', topicId);
+  if (error) throw error;
+  return true;
 }
 
 export async function listQuizQuestions(topicId) {
-  const data = await apiFetch(`/quizzes/topics/${topicId}/questions`);
-  return Array.isArray(data.questions) ? data.questions : [];
+  const { data, error } = await supabase.from('quiz_questions').select('*').eq('topic_id', topicId);
+  if (error) throw error;
+  return data;
 }
 
 export async function createQuizQuestion(topicId, payload) {
-  const data = await apiFetch(`/quizzes/topics/${topicId}/questions`, {
-    method: 'POST',
-    body: payload
-  });
-  return data.question;
+  const { data, error } = await supabase.from('quiz_questions').insert({ ...payload, topic_id: topicId }).single();
+  if (error) throw error;
+  return data;
 }
 
-export async function updateQuizQuestion(topicId, questionId, payload) {
-  const data = await apiFetch(`/quizzes/topics/${topicId}/questions/${questionId}`, {
-    method: 'PUT',
-    body: payload
-  });
-  return data.question;
+export async function updateQuizQuestion(questionId, payload) {
+  const { data, error } = await supabase.from('quiz_questions').update(payload).eq('id', questionId).single();
+  if (error) throw error;
+  return data;
 }
 
-export async function deleteQuizQuestion(topicId, questionId) {
-  await apiFetch(`/quizzes/topics/${topicId}/questions/${questionId}`, {
-    method: 'DELETE'
-  });
+export async function deleteQuizQuestion(questionId) {
+  const { error } = await supabase.from('quiz_questions').delete().eq('id', questionId);
+  if (error) throw error;
+  return true;
 }
-
