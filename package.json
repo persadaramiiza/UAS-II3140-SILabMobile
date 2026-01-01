@@ -31,9 +31,12 @@
   "private": true,
   "devDependencies": {
     "@react-native/babel-preset": "^0.83.1",
+    "@types/react": "~19.1.10",
+    "babel-preset-expo": "^54.0.9",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.0.1",
-    "prettier": "^3.7.4"
+    "prettier": "^3.7.4",
+    "typescript": "~5.9.2"
   }
 }

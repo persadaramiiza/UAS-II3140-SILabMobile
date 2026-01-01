@@ -1,0 +1,170 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* SILab Suite Brand Colors */
+  --brand-blue: #0F2A71;
+  --brand-navy: #001740;
+  --brand-black: #000000;
+  --brand-white: #FFFFFF;
+  --brand-surface: #F3F3F3;
+  --brand-divider: #E8E8E8;
+  
+  /* Text Colors */
+  --text-primary: #111111;
+  --text-secondary: #6B6B6B;
+  --text-disabled: #9A9A9A;
+  
+  /* Accent Colors */
+  --accent-warning: #F4C400;
+  --accent-action: #F5A214;
+  --accent-highlight: #FFDB60;
+  
+  /* Shadows */
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-float: 0 12px 32px rgba(0, 0, 0, 0.12);
+  
+  /* Radius */
+  --radius-card: 16px;
+  --radius-button: 12px;
+  --radius-input: 12px;
+  --radius-chip: 999px;
+  
+  /* System Variables */
+  --font-size: 16px;
+  --background: #ffffff;
+  --foreground: var(--text-primary);
+  --card: #ffffff;
+  --card-foreground: var(--text-primary);
+  --popover: #ffffff;
+  --popover-foreground: var(--text-primary);
+  --primary: var(--brand-blue);
+  --primary-foreground: var(--brand-white);
+  --secondary: var(--brand-surface);
+  --secondary-foreground: var(--brand-blue);
+  --muted: var(--brand-surface);
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--accent-action);
+  --accent-foreground: var(--brand-white);
+  --destructive: #d4183d;
+  --destructive-foreground: #ffffff;
+  --border: var(--brand-divider);
+  --input: transparent;
+  --input-background: #ffffff;
+  --switch-background: #cbced4;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --font-weight-semibold: 600;
+  --ring: var(--brand-blue);
+  --radius: var(--radius-button);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/**
+ * SILab Suite Typography System
+ * H1: 24px, SemiBold, line height 30px
+ * H2: 20px, SemiBold, line height 26px
+ * H3: 18px, SemiBold, line height 24px
+ * Body: 14px, Regular, line height 20px
+ * Body Strong: 14px, Medium, line height 20px
+ * Caption: 12px, Regular, line height 16px
+ * Label: 11px, Medium, line height 14px
+ */
+@layer base {
+  :where(:not(:has([class*=' text-']), :not(:has([class^='text-'])))) {
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      line-height: 30px;
+    }
+
+    h2 {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 26px;
+    }
+
+    h3 {
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 24px;
+    }
+
+    h4, label, button {
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 20px;
+    }
+
+    p, input, textarea {
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 20px;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
+
+/* Hide scrollbar globally but keep functionality */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
