@@ -1,39 +1,17 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-// Dummy content for modules. In a real app, this would come from an API.
-const DUMMY_CONTENT = {
-  'Requirements': {
-    title: 'Requirements Engineering',
-    content: `Requirements engineering adalah proses elisitasi, analisis, spesifikasi, validasi, dan manajemen kebutuhan untuk sebuah sistem perangkat lunak. Fase ini krusial untuk memastikan produk yang dibangun sesuai dengan ekspektasi stakeholder.
+// Interactive module mapping - route to interactive screens for these modules
+const INTERACTIVE_MODULES = {
+  'Requirements': 'RequirementsEngineering',
+  'Enterprise Architecture': 'EnterpriseArchitecture',
+  'Interaction Design': 'InteractionDesign',
+  'Conceptual Modeling (ERD)': 'ERDBuilder',
+};
 
-Materi:
-- Teknik Elisitasi (Wawancara, Kuesioner, Observasi)
-- Analisis Kebutuhan (Fungsional & Non-fungsional)
-- Pemodelan (Use Case, Activity Diagram)
-- Spesifikasi Kebutuhan Perangkat Lunak (SKPL)
-- Manajemen Perubahan Kebutuhan`
-  },
-  'Enterprise Architecture': {
-    title: 'Enterprise Architecture',
-    content: `Arsitektur enterprise (EA) adalah praktik untuk menganalisis, merancang, merencanakan, dan mengimplementasikan analisis enterprise untuk berhasil mencapai strategi bisnis. EA membantu menjembatani kesenjangan antara strategi TI dan strategi bisnis.
-
-Materi:
-- Framework EA (TOGAF, Zachman)
-- Domain Arsitektur (Bisnis, Data, Aplikasi, Teknologi)
-- Artefak dan Deliverables
-- Governance EA`
-  },
-  'Interaction Design': {
-    title: 'Interaction Design',
-    content: `Desain interaksi (IxD) berfokus pada perancangan interaksi antara pengguna dan produk. Tujuannya adalah untuk menciptakan produk yang mudah digunakan, efisien, dan menyenangkan.
-
-Materi:
-- Prinsip Desain Interaksi (Affordance, Signifier, Feedback)
-- Heuristic Evaluation (Nielsen's Heuristics)
-- Prototyping (Low-fidelity & High-fidelity)
-- User Testing`
-  },
+// Content for non-interactive modules
+const MODULE_CONTENT = {
   'Diagram Builder': {
     title: 'Diagram Builder',
     content: `Alat pembuat diagram adalah perangkat lunak yang memungkinkan pengguna untuk membuat berbagai jenis diagram, seperti flowchart, UML diagram, dan ERD.
@@ -42,23 +20,32 @@ Fitur Umum:
 - Drag-and-drop interface
 - Pustaka bentuk dan simbol
 - Opsi kustomisasi (warna, teks)
-- Ekspor ke berbagai format (PNG, SVG, PDF)`
-  },
-  'Conceptual Modeling (ERD)': {
-    title: 'Conceptual Modeling (ERD)',
-    content: `Pemodelan konseptual adalah proses membuat model dari suatu domain masalah untuk lebih memahaminya. Entity-Relationship Diagram (ERD) adalah salah satu teknik pemodelan data yang paling umum digunakan.
+- Ekspor ke berbagai format (PNG, SVG, PDF)
 
-Komponen ERD:
-- Entitas (Entity)
-- Atribut (Attribute)
-- Hubungan (Relationship)
-- Kardinalitas (Cardinality)`
+Tips:
+- Gunakan grid untuk alignment yang tepat
+- Manfaatkan shortcut keyboard
+- Simpan pekerjaan secara berkala
+- Eksport dalam format yang sesuai dengan kebutuhan`
   },
 };
 
-export default function ModuleContentScreen({ route }) {
+export default function ModuleContentScreen({ route, navigation }) {
   const { moduleId, moduleTitle } = route.params;
-  const moduleData = DUMMY_CONTENT[moduleId] || { title: moduleTitle, content: 'Konten tidak ditemukan.' };
+
+  // Auto-navigate to interactive screen if available
+  useEffect(() => {
+    const interactiveRoute = INTERACTIVE_MODULES[moduleId];
+    if (interactiveRoute) {
+      navigation.replace(interactiveRoute, { moduleTitle });
+    }
+  }, [moduleId, navigation]);
+
+  // For non-interactive modules, show content
+  const moduleData = MODULE_CONTENT[moduleId] || { 
+    title: moduleTitle, 
+    content: 'Konten untuk modul ini belum tersedia.' 
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -67,6 +54,14 @@ export default function ModuleContentScreen({ route }) {
       </View>
       <View style={styles.contentContainer}>
         <Text style={styles.content}>{moduleData.content}</Text>
+      </View>
+
+      {/* Placeholder for interactive features */}
+      <View style={styles.interactiveCard}>
+        <Ionicons name="construct-outline" size={32} color="#6b7280" />
+        <Text style={styles.interactiveText}>
+          Fitur interaktif untuk modul ini sedang dalam pengembangan
+        </Text>
       </View>
     </ScrollView>
   );
@@ -95,5 +90,20 @@ const styles = StyleSheet.create({
     color: '#e5e7eb',
     fontSize: 16,
     lineHeight: 24,
+  },
+  interactiveCard: {
+    margin: 20,
+    padding: 32,
+    backgroundColor: '#111827',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#374151',
+    alignItems: 'center',
+    gap: 12,
+  },
+  interactiveText: {
+    color: '#9ca3af',
+    fontSize: 14,
+    textAlign: 'center',
   },
 });

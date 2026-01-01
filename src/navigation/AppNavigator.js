@@ -5,9 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 
 // Screens
 import LoginScreen from '../screens/Auth/LoginScreen';
-import RegisterScreen from '../screens/Auth/RegisterScreen'; // <-- Tambahan Baru
+import RegisterScreen from '../screens/Auth/RegisterScreen';
 import HomeScreen from '../screens/Main/HomeScreen';
-import ModulesScreen from '../screens/Main/ModulesScreen'; // <-- PERBAIKAN: Hapus 's' di ModuleScreen
+import ModulesScreen from '../screens/Main/ModulesScreen';
 import ProfileScreen from '../screens/Main/ProfileScreen';
 import ProfileEditScreen from '../screens/Main/ProfileEditScreen';
 import ModuleContentScreen from '../screens/Modules/ModuleContentScreen';
@@ -18,6 +18,12 @@ import AssignmentDetailScreen from '../screens/Assignments/AssignmentDetailScree
 
 import QuizListScreen from '../screens/Quiz/QuizListScreen';
 import QuizRoomScreen from '../screens/Quiz/QuizRoomScreen';
+
+// Interactive Module Screens
+import RequirementsEngineeringScreen from '../screens/Modules/RequirementsEngineeringScreen';
+import EnterpriseArchitectureScreen from '../screens/Modules/EnterpriseArchitectureScreen';
+import InteractionDesignScreen from '../screens/Modules/InteractionDesignScreen';
+import ERDBuilderScreen from '../screens/Modules/ERDBuilderScreen';
 
 import { useAuth } from '../contexts/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
@@ -88,6 +94,29 @@ export default function AppNavigator() {
               title: route.params?.moduleTitle || 'Materi Modul',
             })} 
           />
+          
+          {/* Interactive Module Screens */}
+          <Stack.Screen 
+            name="RequirementsEngineering" 
+            component={RequirementsEngineeringScreen} 
+            options={{ headerShown: true, title: 'Requirements Engineering' }} 
+          />
+          <Stack.Screen 
+            name="EnterpriseArchitecture" 
+            component={EnterpriseArchitectureScreen} 
+            options={{ headerShown: true, title: 'Enterprise Architecture' }} 
+          />
+          <Stack.Screen 
+            name="InteractionDesign" 
+            component={InteractionDesignScreen} 
+            options={{ headerShown: true, title: 'Interaction Design' }} 
+          />
+          <Stack.Screen 
+            name="ERDBuilder" 
+            component={ERDBuilderScreen} 
+            options={{ headerShown: true, title: 'ERD Builder' }} 
+          />
+
           <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} options={{ headerShown: true, title: 'Edit Profile' }} />
           <Stack.Screen name="AssignmentDetail" component={AssignmentDetailScreen} options={{ headerShown: true, title: 'Detail Tugas' }} />
           <Stack.Screen name="QuizRoom" component={QuizRoomScreen} options={{ headerShown: true, title: 'Mengerjakan Quiz' }} />
