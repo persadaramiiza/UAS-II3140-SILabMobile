@@ -9,6 +9,7 @@ import RegisterScreen from '../screens/Auth/RegisterScreen'; // <-- Tambahan Bar
 import HomeScreen from '../screens/Main/HomeScreen';
 import ModulesScreen from '../screens/Main/ModulesScreen'; // <-- PERBAIKAN: Hapus 's' di ModuleScreen
 import ProfileScreen from '../screens/Main/ProfileScreen';
+import ProfileEditScreen from '../screens/Main/ProfileEditScreen';
 import ModuleContentScreen from '../screens/Modules/ModuleContentScreen';
 import CreateAnnouncementScreen from '../screens/Announcements/CreateAnnouncementScreen';
 
@@ -87,6 +88,7 @@ export default function AppNavigator() {
               title: route.params?.moduleTitle || 'Materi Modul',
             })} 
           />
+          <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} options={{ headerShown: true, title: 'Edit Profile' }} />
           <Stack.Screen name="AssignmentDetail" component={AssignmentDetailScreen} options={{ headerShown: true, title: 'Detail Tugas' }} />
           <Stack.Screen name="QuizRoom" component={QuizRoomScreen} options={{ headerShown: true, title: 'Mengerjakan Quiz' }} />
           <Stack.Screen name="CreateAnnouncement" component={CreateAnnouncementScreen} options={{ headerShown: true, title: 'Buat Pengumuman' }} />
