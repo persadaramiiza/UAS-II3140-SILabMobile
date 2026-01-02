@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { fetchAssignments, getSubmissions } from '../../services/assignmentsApi';
 import { useAuth } from '../../contexts/AuthContext';
 import EmptyState from '../../components/EmptyState';
@@ -54,7 +55,19 @@ export default function AssignmentListScreen({ route, navigation }) {
 
   useFocusEffect(
     useCallback(() => {
-      loadAssignments();
+      let isActive = true;
+      
+      const load = async () => {
+        if (isActive) {
+          await loadAssignments();
+        }
+      };
+      
+      load();
+      
+      return () => {
+        isActive = false;
+      };
     }, [filterFocus])
   );
 
@@ -186,44 +199,51 @@ export default function AssignmentListScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Header with Gradient Background */}
+      <LinearGradient
+        colors={['#0F2A71', '#FBBC04']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={styles.gradientHeader}
+      >
         <Text style={styles.headerTitle}>My Tasks</Text>
-      </View>
+      </LinearGradient>
 
-      {/* Search */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search tasks..."
-          placeholderTextColor="#9CA3AF"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
+      <View style={styles.contentContainer}>
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={18} color="#6B6B6B" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search tasks..."
+            placeholderTextColor="rgba(17, 17, 17, 0.5)"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
 
-      {/* Filter Chips */}
-      <View style={styles.filterRow}>
-        {['All', 'Active', 'Submitted', 'Graded'].map((filter) => (
-          <TouchableOpacity
-            key={filter}
-            style={[
-              styles.filterChip,
-              statusFilter === filter && styles.filterChipActive,
-            ]}
-            onPress={() => setStatusFilter(filter)}
-          >
-            <Text
+        {/* Filter Chips */}
+        <View style={styles.filterRow}>
+          {['All', 'Active', 'Submitted', 'Graded'].map((filter) => (
+            <TouchableOpacity
+              key={filter}
               style={[
-                styles.filterText,
-                statusFilter === filter && styles.filterTextActive,
+                styles.filterChip,
+                statusFilter === filter && styles.filterChipActive,
               ]}
+              onPress={() => setStatusFilter(filter)}
             >
-              {filter}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.filterText,
+                  statusFilter === filter && styles.filterTextActive,
+                ]}
+              >
+                {filter}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       {/* Content */}
@@ -235,28 +255,34 @@ export default function AssignmentListScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FAFAFA',
   },
-  header: {
-    backgroundColor: '#3B82F6',
+  gradientHeader: {
+    paddingTop: 40,
+    paddingBottom: 20,
     paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 16,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
   },
+  contentContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F3F3F3',
     borderRadius: 12,
-    marginHorizontal: 24,
-    marginTop: 16,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     height: 48,
+    marginBottom: 16,
+    borderWidth: 0.7,
+    borderColor: 'transparent',
   },
   searchIcon: {
     marginRight: 8,
@@ -268,8 +294,6 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
-    paddingHorizontal: 24,
-    marginTop: 16,
     gap: 8,
   },
   filterChip: {
@@ -277,13 +301,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: '#F3F3F3',
+    height: 40,
+    justifyContent: 'center',
   },
   filterChipActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#0F2A71',
   },
   filterText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
     color: '#6B6B6B',
   },
   filterTextActive: {
@@ -291,7 +316,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 24,
-    gap: 12,
   },
   card: {
     backgroundColor: '#FFFFFF',

@@ -25,16 +25,32 @@ export default function HomeScreen({ navigation }) {
 
   const loadData = async () => {
     try {
+      setLoading(true);
       const data = await fetchAnnouncements();
       setAnnouncements(data.slice(0, 3)); // Only show 3 latest
     } catch (error) {
-      console.error(error);
+      console.error('Failed to load announcements:', error);
+      // Continue with empty data instead of blocking
+      setAnnouncements([]);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => { 
-    // Load data in background without blocking UI
-    loadData(); 
+    let isMounted = true;
+    
+    const init = async () => {
+      if (isMounted) {
+        await loadData();
+      }
+    };
+    
+    init();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Mock data for stats

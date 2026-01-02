@@ -68,10 +68,10 @@ function HomeTabs() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Pengumuman' }} />
-      <Tab.Screen name="Modul" component={ModulesScreen} />
-      <Tab.Screen name="Tugas" component={AssignmentListScreen} />
-      <Tab.Screen name="Quiz" component={QuizListScreen} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Pengumuman', headerShown: false }} />
+      <Tab.Screen name="Modul" component={ModulesScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Tugas" component={AssignmentListScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Quiz" component={QuizListScreen} options={{ headerShown: false }} />
       <Tab.Screen name="Akun" component={ProfileScreen} />
     </Tab.Navigator>
   );
