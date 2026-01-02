@@ -10,6 +10,7 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = '@erd_diagram';
@@ -155,6 +156,10 @@ export default function ERDBuilderScreen() {
     };
 
     saveDiagram(entities, [...relationships, relation]);
+    closeRelationModal();
+  };
+
+  const closeRelationModal = () => {
     setShowRelationModal(false);
     setFromEntity('');
     setToEntity('');
@@ -187,10 +192,15 @@ export default function ERDBuilderScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>ERD Builder</Text>
-        <Text style={styles.subtitle}>Entity Relationship Diagram</Text>
-      </View>
+      <LinearGradient
+        colors={['#0F2A71', '#FBBC04']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.header}
+      >
+        <Text style={styles.title}>ERD Viewer</Text>
+        <Text style={styles.subtitle}>Entity Relationship Diagram Builder</Text>
+      </LinearGradient>
 
       <View style={styles.actions}>
         <TouchableOpacity
@@ -374,92 +384,94 @@ export default function ERDBuilderScreen() {
         visible={showRelationModal}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowRelationModal(false)}
+        onRequestClose={closeRelationModal}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxHeight: 400 }]}>
+          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Relationship</Text>
-              <TouchableOpacity onPress={() => setShowRelationModal(false)}>
+              <TouchableOpacity onPress={closeRelationModal}>
                 <Ionicons name="close" size={24} color="#9ca3af" />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.label}>From Entity</Text>
-            <View style={styles.pickerContainer}>
-              {entities.map((entity) => (
-                <TouchableOpacity
-                  key={entity.id}
-                  style={[
-                    styles.pickerOption,
-                    fromEntity === entity.id && styles.pickerOptionActive,
-                  ]}
-                  onPress={() => setFromEntity(entity.id)}
-                >
-                  <Text
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.label}>From Entity</Text>
+              <View style={styles.pickerContainer}>
+                {entities.map((entity) => (
+                  <TouchableOpacity
+                    key={entity.id}
                     style={[
-                      styles.pickerOptionText,
-                      fromEntity === entity.id && styles.pickerOptionTextActive,
+                      styles.pickerOption,
+                      fromEntity === entity.id && styles.pickerOptionActive,
                     ]}
+                    onPress={() => setFromEntity(entity.id)}
                   >
-                    {entity.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                    <Text
+                      style={[
+                        styles.pickerOptionText,
+                        fromEntity === entity.id && styles.pickerOptionTextActive,
+                      ]}
+                    >
+                      {entity.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-            <Text style={styles.label}>Relationship Type</Text>
-            <View style={styles.pickerContainer}>
-              {RELATIONSHIP_TYPES.map((type) => (
-                <TouchableOpacity
-                  key={type.key}
-                  style={[
-                    styles.pickerOption,
-                    relationType === type.key && styles.pickerOptionActive,
-                  ]}
-                  onPress={() => setRelationType(type.key)}
-                >
-                  <Text
+              <Text style={styles.label}>Relationship Type</Text>
+              <View style={styles.pickerContainer}>
+                {RELATIONSHIP_TYPES.map((type) => (
+                  <TouchableOpacity
+                    key={type.key}
                     style={[
-                      styles.pickerOptionText,
-                      relationType === type.key && styles.pickerOptionTextActive,
+                      styles.pickerOption,
+                      relationType === type.key && styles.pickerOptionActive,
                     ]}
+                    onPress={() => setRelationType(type.key)}
                   >
-                    {type.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                    <Text
+                      style={[
+                        styles.pickerOptionText,
+                        relationType === type.key && styles.pickerOptionTextActive,
+                      ]}
+                    >
+                      {type.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-            <Text style={styles.label}>To Entity</Text>
-            <View style={styles.pickerContainer}>
-              {entities.map((entity) => (
-                <TouchableOpacity
-                  key={entity.id}
-                  style={[
-                    styles.pickerOption,
-                    toEntity === entity.id && styles.pickerOptionActive,
-                  ]}
-                  onPress={() => setToEntity(entity.id)}
-                >
-                  <Text
+              <Text style={styles.label}>To Entity</Text>
+              <View style={styles.pickerContainer}>
+                {entities.map((entity) => (
+                  <TouchableOpacity
+                    key={entity.id}
                     style={[
-                      styles.pickerOptionText,
-                      toEntity === entity.id && styles.pickerOptionTextActive,
+                      styles.pickerOption,
+                      toEntity === entity.id && styles.pickerOptionActive,
                     ]}
+                    onPress={() => setToEntity(entity.id)}
                   >
-                    {entity.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                    <Text
+                      style={[
+                        styles.pickerOptionText,
+                        toEntity === entity.id && styles.pickerOptionTextActive,
+                      ]}
+                    >
+                      {entity.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-            <TouchableOpacity
-              style={styles.saveButton}
-              onPress={saveRelationship}
-            >
-              <Text style={styles.saveButtonText}>Add Relationship</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={saveRelationship}
+              >
+                <Text style={styles.saveButtonText}>Add Relationship</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -542,50 +554,70 @@ function RelationshipCard({ relationship, fromName, toName, symbol, onDelete }) 
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#020617' },
-  header: { padding: 20, borderBottomWidth: 1, borderBottomColor: '#1f2937' },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
-  subtitle: { fontSize: 14, color: '#9ca3af' },
+  container: { flex: 1, backgroundColor: '#FAFAFA' },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    opacity: 0.7,
+    lineHeight: 20,
+  },
   actions: {
     flexDirection: 'row',
     padding: 16,
     gap: 12,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    borderBottomColor: '#E5E7EB',
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0F2A71',
     padding: 12,
     borderRadius: 8,
     gap: 6,
   },
-  actionButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
+  actionButtonText: { color: '#FFFFFF', fontWeight: '600', fontSize: 13 },
   clearButton: {
-    backgroundColor: '#111827',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#ef4444',
+    borderColor: '#DC2626',
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  content: { flex: 1, padding: 16 },
+  content: { flex: 1, padding: 16, backgroundColor: '#FAFAFA' },
   section: { marginBottom: 24 },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '600',
+    color: '#1F2937',
     marginBottom: 12,
   },
   card: {
-    backgroundColor: '#111827',
+    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -594,23 +626,23 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   cardHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#fff', flex: 1 },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: '#1F2937', flex: 1 },
   cardActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   iconButton: { padding: 4 },
   badge: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0F2A71',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
     minWidth: 24,
     alignItems: 'center',
   },
-  badgeText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  badgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' },
   attributesList: {
-    backgroundColor: '#0a0f1e',
+    backgroundColor: '#F9FAFB',
     padding: 12,
     borderTopWidth: 1,
-    borderTopColor: '#374151',
+    borderTopColor: '#E5E7EB',
   },
   attributeItem: {
     flexDirection: 'row',
@@ -618,50 +650,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    borderBottomColor: '#E5E7EB',
   },
-  attributeName: { color: '#d1d5db', fontSize: 14 },
+  attributeName: { color: '#374151', fontSize: 14 },
   attributeKeys: { flexDirection: 'row', gap: 6 },
   keyTag: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#facc15',
+    backgroundColor: '#FBBC04',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  keyTagText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
+  keyTagText: { color: '#1F2937', fontSize: 10, fontWeight: 'bold' },
   relationCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#111827',
+    backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   relationContent: { flex: 1 },
-  relationText: { color: '#fff', fontSize: 14, marginBottom: 4 },
-  relationSymbol: { color: '#3b82f6', fontWeight: 'bold' },
-  relationType: { color: '#6b7280', fontSize: 12 },
+  relationText: { color: '#1F2937', fontSize: 14, marginBottom: 4 },
+  relationSymbol: { color: '#0F2A71', fontWeight: 'bold' },
+  relationType: { color: '#6B7280', fontSize: 12 },
   emptyState: { alignItems: 'center', padding: 48, marginTop: 60 },
   emptyText: {
-    color: '#9ca3af',
+    color: '#6B7280',
     fontSize: 18,
     marginTop: 16,
     fontWeight: '500',
   },
-  emptyHint: { color: '#6b7280', fontSize: 14, marginTop: 8, textAlign: 'center' },
+  emptyHint: { color: '#9CA3AF', fontSize: 14, marginTop: 8, textAlign: 'center' },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#111827',
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
@@ -673,19 +710,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#1F2937' },
   label: {
-    color: '#9ca3af',
+    color: '#6B7280',
     fontSize: 14,
     marginBottom: 8,
     marginTop: 12,
     fontWeight: '500',
   },
   input: {
-    backgroundColor: '#0a0f1e',
-    color: '#fff',
+    backgroundColor: '#F9FAFB',
+    color: '#1F2937',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#E5E7EB',
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
@@ -698,19 +735,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   keyButton: {
-    backgroundColor: '#0a0f1e',
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#E5E7EB',
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 6,
   },
   keyButtonActive: {
-    backgroundColor: '#facc15',
-    borderColor: '#facc15',
+    backgroundColor: '#FBBC04',
+    borderColor: '#FBBC04',
   },
-  keyButtonText: { color: '#9ca3af', fontSize: 12, fontWeight: 'bold' },
-  keyButtonTextActive: { color: '#000' },
+  keyButtonText: { color: '#6B7280', fontSize: 12, fontWeight: 'bold' },
+  keyButtonTextActive: { color: '#1F2937' },
   removeButton: { padding: 4 },
   addAttrButton: {
     flexDirection: 'row',
@@ -718,34 +755,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     padding: 12,
-    backgroundColor: '#0a0f1e',
+    backgroundColor: '#F9FAFB',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#3b82f6',
+    borderColor: '#0F2A71',
     marginBottom: 20,
   },
-  addAttrButtonText: { color: '#3b82f6', fontSize: 14, fontWeight: '500' },
+  addAttrButtonText: { color: '#0F2A71', fontSize: 14, fontWeight: '500' },
   pickerContainer: { marginBottom: 16 },
   pickerOption: {
     padding: 14,
-    backgroundColor: '#0a0f1e',
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#E5E7EB',
     borderRadius: 8,
     marginBottom: 8,
   },
   pickerOptionActive: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
+    backgroundColor: '#0F2A71',
+    borderColor: '#0F2A71',
   },
-  pickerOptionText: { color: '#9ca3af', fontSize: 14 },
-  pickerOptionTextActive: { color: '#fff', fontWeight: '500' },
+  pickerOptionText: { color: '#6B7280', fontSize: 14 },
+  pickerOptionTextActive: { color: '#FFFFFF', fontWeight: '500' },
   saveButton: {
-    backgroundColor: '#facc15',
+    backgroundColor: '#0F2A71',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 8,
   },
-  saveButtonText: { color: '#000', fontWeight: 'bold', fontSize: 16 },
+  saveButtonText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 16 },
 });

@@ -3,465 +3,625 @@ import {
   View,
   Text,
   ScrollView,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
+  Dimensions,
+  TextInput,
   Modal,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Slider from '@react-native-community/slider';
+import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const STORAGE_KEY = '@ea_mapping';
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const STORAGE_KEY = '@ea_diagram';
 
-const DEFAULT_VALUE_STREAMS = [
-  'Discovery',
-  'Design',
-  'Development',
-  'Testing',
-  'Deployment',
+const TEMPLATES = [
+  { id: 'blank', label: 'Blank Canvas' },
+  { id: 'basic', label: 'Basic EA Framework' },
 ];
 
-const DEFAULT_CAPABILITIES = [
-  'Requirements Analysis',
-  'System Design',
-  'Database Modeling',
-  'API Development',
-  'UI/UX Design',
-  'Quality Assurance',
+const LAYERS = [
+  { id: 'business', label: 'Business', icon: 'people-outline', color: '#3B82F6' },
+  { id: 'application', label: 'Application', icon: 'apps-outline', color: '#8B5CF6' },
+  { id: 'data', label: 'Data', icon: 'server-outline', color: '#10B981' },
+  { id: 'technology', label: 'Technology', icon: 'hardware-chip-outline', color: '#F59E0B' },
 ];
+
+const BASIC_TEMPLATE = {
+  business: [
+    { id: 'b1', name: 'Business Process' },
+    { id: 'b2', name: 'Business Service' },
+  ],
+  application: [
+    { id: 'a1', name: 'Application Component' },
+    { id: 'a2', name: 'Application Service' },
+  ],
+  data: [
+    { id: 'd1', name: 'Data Entity' },
+    { id: 'd2', name: 'Data Service' },
+  ],
+  technology: [
+    { id: 't1', name: 'Infrastructure' },
+    { id: 't2', name: 'Platform Service' },
+  ],
+};
 
 export default function EnterpriseArchitectureScreen() {
-  const [valueStreams, setValueStreams] = useState(DEFAULT_VALUE_STREAMS);
-  const [capabilities, setCapabilities] = useState(DEFAULT_CAPABILITIES);
-  const [mappings, setMappings] = useState({});
+  const navigation = useNavigation();
+  const [selectedTemplate, setSelectedTemplate] = useState('blank');
+  const [selectedLayer, setSelectedLayer] = useState('business');
+  const [components, setComponents] = useState({
+    business: [],
+    application: [],
+    data: [],
+    technology: [],
+  });
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addType, setAddType] = useState('stream'); // 'stream' or 'capability'
-  const [newItemName, setNewItemName] = useState('');
-  const [editingMapping, setEditingMapping] = useState(null);
+  const [newComponentName, setNewComponentName] = useState('');
 
   useEffect(() => {
-    loadData();
+    loadDiagram();
   }, []);
 
-  const loadData = async () => {
+  const loadDiagram = async () => {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const data = JSON.parse(stored);
-        setValueStreams(data.valueStreams || DEFAULT_VALUE_STREAMS);
-        setCapabilities(data.capabilities || DEFAULT_CAPABILITIES);
-        setMappings(data.mappings || {});
+        setComponents(JSON.parse(stored));
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading diagram:', error);
     }
   };
 
-  const saveData = async (streams, caps, maps) => {
+  const saveDiagram = async (data) => {
     try {
-      const data = {
-        valueStreams: streams,
-        capabilities: caps,
-        mappings: maps,
-      };
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      setValueStreams(streams);
-      setCapabilities(caps);
-      setMappings(maps);
+      setComponents(data);
     } catch (error) {
-      console.error('Error saving data:', error);
+      console.error('Error saving diagram:', error);
     }
   };
 
-  const addItem = () => {
-    if (!newItemName.trim()) {
-      Alert.alert('Error', 'Please enter a name');
+  const handleTemplateSelect = (templateId) => {
+    setSelectedTemplate(templateId);
+    if (templateId === 'basic') {
+      Alert.alert(
+        'Load Template',
+        'This will replace current diagram with Basic EA Framework template. Continue?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Load',
+            onPress: () => saveDiagram(BASIC_TEMPLATE),
+          },
+        ]
+      );
+    } else if (templateId === 'blank') {
+      Alert.alert(
+        'Clear Canvas',
+        'This will clear all components. Continue?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Clear',
+            style: 'destructive',
+            onPress: () => saveDiagram({
+              business: [],
+              application: [],
+              data: [],
+              technology: [],
+            }),
+          },
+        ]
+      );
+    }
+  };
+
+  const addComponent = () => {
+    if (!newComponentName.trim()) {
+      Alert.alert('Error', 'Please enter a component name');
       return;
     }
 
-    if (addType === 'stream') {
-      const updated = [...valueStreams, newItemName.trim()];
-      saveData(updated, capabilities, mappings);
-    } else {
-      const updated = [...capabilities, newItemName.trim()];
-      saveData(valueStreams, updated, mappings);
-    }
+    const newComponent = {
+      id: `${selectedLayer}-${Date.now()}`,
+      name: newComponentName.trim(),
+    };
 
-    setNewItemName('');
+    const updated = {
+      ...components,
+      [selectedLayer]: [...components[selectedLayer], newComponent],
+    };
+
+    saveDiagram(updated);
+    setNewComponentName('');
     setShowAddModal(false);
   };
 
-  const updateMapping = (stream, capability, intensity) => {
-    const key = `${stream}:${capability}`;
-    const updated = { ...mappings };
-    
-    if (intensity === 0) {
-      delete updated[key];
-    } else {
-      updated[key] = intensity;
-    }
-    
-    saveData(valueStreams, capabilities, updated);
-    setEditingMapping(null);
-  };
-
-  const getMappingIntensity = (stream, capability) => {
-    const key = `${stream}:${capability}`;
-    return mappings[key] || 0;
-  };
-
-  const getHeatColor = (intensity) => {
-    if (intensity === 0) return '#1f2937';
-    if (intensity <= 25) return '#3b82f6';
-    if (intensity <= 50) return '#22c55e';
-    if (intensity <= 75) return '#f59e0b';
-    return '#ef4444';
-  };
-
-  const resetAll = () => {
-    Alert.alert('Reset All', 'Reset to default configuration?', [
+  const deleteComponent = (layerId, componentId) => {
+    Alert.alert('Delete Component', 'Remove this component?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Reset',
+        text: 'Delete',
         style: 'destructive',
         onPress: () => {
-          saveData(DEFAULT_VALUE_STREAMS, DEFAULT_CAPABILITIES, {});
+          const updated = {
+            ...components,
+            [layerId]: components[layerId].filter((c) => c.id !== componentId),
+          };
+          saveDiagram(updated);
         },
       },
     ]);
   };
 
+  const handleDownload = () => {
+    Alert.alert('Export', 'EA Diagram data copied to clipboard!');
+  };
+
+  const getLayerColor = (layerId) => {
+    return LAYERS.find((l) => l.id === layerId)?.color || '#6B7280';
+  };
+
+  const getTotalComponents = () => {
+    return Object.values(components).reduce((sum, arr) => sum + arr.length, 0);
+  };
+
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.downloadButton} onPress={handleDownload}>
+          <Ionicons name="download-outline" size={18} color="#FFFFFF" />
+          <Text style={styles.downloadButtonText}>Download</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Title */}
+      <View style={styles.titleContainer}>
         <Text style={styles.title}>Enterprise Architecture</Text>
-        <Text style={styles.subtitle}>Value Stream × Capability Mapping</Text>
+        <Text style={styles.subtitle}>Design EA models with TOGAF framework</Text>
       </View>
 
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={[styles.addButton, { flex: 1 }]}
-          onPress={() => {
-            setAddType('stream');
-            setShowAddModal(true);
-          }}
-        >
-          <Ionicons name="add" size={18} color="#fff" />
-          <Text style={styles.addButtonText}>Stream</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.addButton, { flex: 1 }]}
-          onPress={() => {
-            setAddType('capability');
-            setShowAddModal(true);
-          }}
-        >
-          <Ionicons name="add" size={18} color="#fff" />
-          <Text style={styles.addButtonText}>Capability</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.resetButton} onPress={resetAll}>
-          <Ionicons name="refresh-outline" size={20} color="#f59e0b" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.legend}>
-        <Text style={styles.legendTitle}>Heat Intensity:</Text>
-        <View style={styles.legendItems}>
-          <LegendItem color="#1f2937" label="None" />
-          <LegendItem color="#3b82f6" label="Low" />
-          <LegendItem color="#22c55e" label="Med" />
-          <LegendItem color="#f59e0b" label="High" />
-          <LegendItem color="#ef4444" label="Critical" />
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Templates Card */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Templates</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.templatesRow}>
+              {TEMPLATES.map((template) => (
+                <TouchableOpacity
+                  key={template.id}
+                  style={[
+                    styles.templatePill,
+                    selectedTemplate === template.id && styles.templatePillActive,
+                  ]}
+                  onPress={() => handleTemplateSelect(template.id)}
+                >
+                  <Text
+                    style={[
+                      styles.templatePillText,
+                      selectedTemplate === template.id && styles.templatePillTextActive,
+                    ]}
+                  >
+                    {template.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
         </View>
-      </View>
 
-      <ScrollView horizontal style={styles.matrixScroll}>
-        <View>
-          {/* Header Row */}
-          <View style={styles.headerRow}>
-            <View style={styles.cornerCell} />
-            {valueStreams.map((stream, idx) => (
-              <View key={idx} style={styles.headerCell}>
-                <Text style={styles.headerText} numberOfLines={2}>
-                  {stream}
+        {/* Architecture Layers Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Architecture Layers</Text>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => setShowAddModal(true)}
+            >
+              <Ionicons name="add" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.layersGrid}>
+            {LAYERS.map((layer) => (
+              <TouchableOpacity
+                key={layer.id}
+                style={[
+                  styles.layerButton,
+                  selectedLayer === layer.id && styles.layerButtonActive,
+                ]}
+                onPress={() => setSelectedLayer(layer.id)}
+              >
+                <Ionicons
+                  name={layer.icon}
+                  size={20}
+                  color={selectedLayer === layer.id ? '#FFFFFF' : '#6B7280'}
+                />
+                <Text
+                  style={[
+                    styles.layerButtonText,
+                    selectedLayer === layer.id && styles.layerButtonTextActive,
+                  ]}
+                >
+                  {layer.label}
                 </Text>
+                {components[layer.id].length > 0 && (
+                  <View style={[styles.badge, { backgroundColor: layer.color }]}>
+                    <Text style={styles.badgeText}>{components[layer.id].length}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Canvas Card - TOGAF Layer View */}
+        <View style={styles.canvasCard}>
+          <View style={styles.canvasHeader}>
+            <Text style={styles.canvasTitle}>TOGAF Architecture Layers</Text>
+            <Text style={styles.canvasSubtitle}>{getTotalComponents()} components</Text>
+          </View>
+          
+          <View style={styles.layersContainer}>
+            {LAYERS.map((layer) => (
+              <View key={layer.id} style={styles.layerSection}>
+                <View style={[styles.layerHeader, { backgroundColor: layer.color }]}>
+                  <Ionicons name={layer.icon} size={16} color="#FFFFFF" />
+                  <Text style={styles.layerHeaderText}>{layer.label} Layer</Text>
+                </View>
+                <View style={styles.layerContent}>
+                  {components[layer.id].length === 0 ? (
+                    <Text style={styles.emptyLayerText}>No components</Text>
+                  ) : (
+                    <View style={styles.componentsGrid}>
+                      {components[layer.id].map((comp) => (
+                        <TouchableOpacity
+                          key={comp.id}
+                          style={[styles.componentBox, { borderColor: layer.color }]}
+                          onLongPress={() => deleteComponent(layer.id, comp.id)}
+                        >
+                          <Text style={styles.componentText} numberOfLines={2}>
+                            {comp.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
               </View>
             ))}
           </View>
-
-          {/* Matrix Rows */}
-          <ScrollView style={styles.matrixContent}>
-            {capabilities.map((capability, capIdx) => (
-              <View key={capIdx} style={styles.matrixRow}>
-                <View style={styles.rowHeader}>
-                  <Text style={styles.rowHeaderText} numberOfLines={2}>
-                    {capability}
-                  </Text>
-                </View>
-                {valueStreams.map((stream, streamIdx) => {
-                  const intensity = getMappingIntensity(stream, capability);
-                  const heatColor = getHeatColor(intensity);
-                  return (
-                    <TouchableOpacity
-                      key={streamIdx}
-                      style={[styles.matrixCell, { backgroundColor: heatColor }]}
-                      onPress={() =>
-                        setEditingMapping({ stream, capability, intensity })
-                      }
-                    >
-                      {intensity > 0 && (
-                        <Text style={styles.cellText}>{intensity}</Text>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            ))}
-          </ScrollView>
+          
+          <Text style={styles.hintText}>Long press on component to delete</Text>
         </View>
       </ScrollView>
 
-      {/* Add Modal */}
+      {/* Add Component Modal */}
       <Modal
         visible={showAddModal}
-        animationType="slide"
-        transparent={true}
+        transparent
+        animationType="fade"
         onRequestClose={() => setShowAddModal(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                Add {addType === 'stream' ? 'Value Stream' : 'Capability'}
-              </Text>
+              <Text style={styles.modalTitle}>Add Component</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <Ionicons name="close" size={24} color="#9ca3af" />
+                <Ionicons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
 
+            <Text style={styles.modalLabel}>Layer</Text>
+            <View style={[styles.layerIndicator, { backgroundColor: getLayerColor(selectedLayer) }]}>
+              <Text style={styles.layerIndicatorText}>
+                {LAYERS.find((l) => l.id === selectedLayer)?.label}
+              </Text>
+            </View>
+
+            <Text style={styles.modalLabel}>Component Name</Text>
             <TextInput
               style={styles.input}
-              placeholder={`Enter ${addType} name...`}
-              placeholderTextColor="#6b7280"
-              value={newItemName}
-              onChangeText={setNewItemName}
+              placeholder="Enter component name..."
+              placeholderTextColor="#9CA3AF"
+              value={newComponentName}
+              onChangeText={setNewComponentName}
             />
 
-            <TouchableOpacity style={styles.saveButton} onPress={addItem}>
-              <Text style={styles.saveButtonText}>Add</Text>
+            <TouchableOpacity style={styles.saveButton} onPress={addComponent}>
+              <Text style={styles.saveButtonText}>Add Component</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-
-      {/* Edit Mapping Modal */}
-      <Modal
-        visible={editingMapping !== null}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={() => setEditingMapping(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Set Heat Intensity</Text>
-              <TouchableOpacity onPress={() => setEditingMapping(null)}>
-                <Ionicons name="close" size={24} color="#9ca3af" />
-              </TouchableOpacity>
-            </View>
-
-            {editingMapping && (
-              <>
-                <View style={styles.mappingInfo}>
-                  <Text style={styles.mappingLabel}>Value Stream:</Text>
-                  <Text style={styles.mappingValue}>{editingMapping.stream}</Text>
-                </View>
-                <View style={styles.mappingInfo}>
-                  <Text style={styles.mappingLabel}>Capability:</Text>
-                  <Text style={styles.mappingValue}>{editingMapping.capability}</Text>
-                </View>
-
-                <View style={styles.sliderContainer}>
-                  <Text style={styles.sliderLabel}>
-                    Intensity: {editingMapping.intensity}%
-                  </Text>
-                  <Slider
-                    style={styles.slider}
-                    minimumValue={0}
-                    maximumValue={100}
-                    step={25}
-                    value={editingMapping.intensity}
-                    onValueChange={(value) =>
-                      setEditingMapping({ ...editingMapping, intensity: value })
-                    }
-                    minimumTrackTintColor={getHeatColor(editingMapping.intensity)}
-                    maximumTrackTintColor="#374151"
-                    thumbTintColor="#facc15"
-                  />
-                  <View style={styles.sliderMarks}>
-                    <Text style={styles.sliderMark}>0</Text>
-                    <Text style={styles.sliderMark}>25</Text>
-                    <Text style={styles.sliderMark}>50</Text>
-                    <Text style={styles.sliderMark}>75</Text>
-                    <Text style={styles.sliderMark}>100</Text>
-                  </View>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={() =>
-                    updateMapping(
-                      editingMapping.stream,
-                      editingMapping.capability,
-                      editingMapping.intensity
-                    )
-                  }
-                >
-                  <Text style={styles.saveButtonText}>Save Mapping</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
-    </View>
-  );
-}
-
-function LegendItem({ color, label }) {
-  return (
-    <View style={styles.legendItem}>
-      <View style={[styles.legendBox, { backgroundColor: color }]} />
-      <Text style={styles.legendLabel}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#020617' },
-  header: { padding: 20, borderBottomWidth: 1, borderBottomColor: '#1f2937' },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
-  subtitle: { fontSize: 14, color: '#9ca3af' },
-  actions: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+  container: {
+    flex: 1,
+    backgroundColor: '#FAFAFA',
   },
-  addButton: {
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 48,
+    paddingBottom: 12,
+    backgroundColor: '#FAFAFA',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  downloadButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#3b82f6',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: '#0F2A71',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
     gap: 6,
   },
-  addButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
-  resetButton: {
-    backgroundColor: '#111827',
-    borderWidth: 1,
-    borderColor: '#f59e0b',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+  downloadButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
-  legend: {
+  titleContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FBBC04',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     padding: 16,
-    backgroundColor: '#111827',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    marginBottom: 12,
   },
-  legendTitle: { color: '#9ca3af', fontSize: 12, marginBottom: 8 },
-  legendItems: { flexDirection: 'row', gap: 16 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendBox: { width: 16, height: 16, borderRadius: 4 },
-  legendLabel: { color: '#d1d5db', fontSize: 11 },
-  matrixScroll: { flex: 1 },
-  headerRow: { flexDirection: 'row', backgroundColor: '#111827' },
-  cornerCell: { width: 120, height: 60, borderRightWidth: 2, borderBottomWidth: 2, borderColor: '#374151' },
-  headerCell: {
-    width: 100,
-    height: 60,
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  addButton: {
+    backgroundColor: '#0F2A71',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 8,
-    borderRightWidth: 1,
-    borderBottomWidth: 2,
-    borderColor: '#374151',
+    marginBottom: 12,
   },
-  headerText: { color: '#fff', fontSize: 11, fontWeight: '600', textAlign: 'center' },
-  matrixContent: { flex: 1 },
-  matrixRow: { flexDirection: 'row' },
-  rowHeader: {
-    width: 120,
+  templatesRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  templatePill: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  templatePillActive: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#D1D5DB',
+  },
+  templatePillText: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  templatePillTextActive: {
+    color: '#1F2937',
+    fontWeight: '500',
+  },
+  layersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  layerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+    width: '48%',
+  },
+  layerButtonActive: {
+    backgroundColor: '#0F2A71',
+  },
+  layerButtonText: {
+    fontSize: 13,
+    color: '#374151',
+    flex: 1,
+  },
+  layerButtonTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  badge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  canvasCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  canvasHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  canvasTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  canvasSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  layersContainer: {
+    gap: 12,
+  },
+  layerSection: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  layerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  layerHeaderText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  layerContent: {
+    padding: 12,
+    backgroundColor: '#FAFAFA',
     minHeight: 60,
-    justifyContent: 'center',
-    padding: 8,
-    backgroundColor: '#111827',
-    borderRightWidth: 2,
-    borderBottomWidth: 1,
-    borderColor: '#374151',
   },
-  rowHeaderText: { color: '#fff', fontSize: 11, fontWeight: '500' },
-  matrixCell: {
-    width: 100,
-    height: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#374151',
+  emptyLayerText: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
-  cellText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  componentsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  componentBox: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  componentText: {
+    fontSize: 12,
+    color: '#374151',
+  },
+  hintText: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: 12,
+    fontStyle: 'italic',
+  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     padding: 20,
   },
-  modalContent: { backgroundColor: '#111827', borderRadius: 16, padding: 24 },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+  },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
   },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  layerIndicator: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 16,
+    alignSelf: 'flex-start',
+  },
+  layerIndicatorText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   input: {
-    backgroundColor: '#0a0f1e',
-    color: '#fff',
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#E5E7EB',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 20,
     fontSize: 14,
+    color: '#1F2937',
+    marginBottom: 20,
   },
-  mappingInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
-  },
-  mappingLabel: { color: '#9ca3af', fontSize: 14 },
-  mappingValue: { color: '#fff', fontSize: 14, fontWeight: '500' },
-  sliderContainer: { marginVertical: 20 },
-  sliderLabel: { color: '#facc15', fontSize: 18, fontWeight: 'bold', marginBottom: 12, textAlign: 'center' },
-  slider: { width: '100%', height: 40 },
-  sliderMarks: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4 },
-  sliderMark: { color: '#6b7280', fontSize: 11 },
   saveButton: {
-    backgroundColor: '#facc15',
-    padding: 16,
+    backgroundColor: '#0F2A71',
+    padding: 14,
     borderRadius: 8,
     alignItems: 'center',
   },
-  saveButtonText: { color: '#000', fontWeight: 'bold', fontSize: 16 },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });

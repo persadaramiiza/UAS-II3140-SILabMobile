@@ -6,8 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 const INTERACTIVE_MODULES = {
   'Requirements': 'RequirementsEngineering',
   'Enterprise Architecture': 'EnterpriseArchitecture',
-  'Interaction Design': 'InteractionDesign',
-  'Conceptual Modeling (ERD)': 'ERDBuilder',
+  'Diagram Builder': 'InteractionDesign',
+  'Conceptual Modeling': 'ERDBuilder',
 };
 
 // Content for non-interactive modules

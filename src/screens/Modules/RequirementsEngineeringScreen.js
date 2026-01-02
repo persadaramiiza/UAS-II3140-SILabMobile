@@ -7,26 +7,55 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
 
 const STORAGE_KEY = '@moscow_requirements';
 
 const CATEGORIES = [
-  { key: 'must', label: 'Must Have', color: '#ef4444', icon: 'alert-circle' },
-  { key: 'should', label: 'Should Have', color: '#f59e0b', icon: 'warning' },
-  { key: 'could', label: 'Could Have', color: '#3b82f6', icon: 'information-circle' },
-  { key: 'wont', label: "Won't Have", color: '#6b7280', icon: 'close-circle' },
+  { 
+    key: 'must', 
+    label: 'Must Have', 
+    color: '#DC2626', 
+    bgColor: '#FEE2E2',
+    description: 'Critical requirements that must be delivered.'
+  },
+  { 
+    key: 'should', 
+    label: 'Should Have', 
+    color: '#EA580C', 
+    bgColor: '#FED7AA',
+    description: 'Important requirements that should be included.'
+  },
+  { 
+    key: 'could', 
+    label: 'Could Have', 
+    color: '#2563EB', 
+    bgColor: '#DBEAFE',
+    description: 'Desirable requirements that could improve the system.'
+  },
+  { 
+    key: 'wont', 
+    label: "Won't Have", 
+    color: '#6B7280', 
+    bgColor: '#F3F4F6',
+    description: 'Requirements that will not be implemented this time.'
+  },
 ];
 
 export default function RequirementsEngineeringScreen() {
+  const navigation = useNavigation();
   const [requirements, setRequirements] = useState([]);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newRequirement, setNewRequirement] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('must');
-  const [editingId, setEditingId] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newReq, setNewReq] = useState({
+    title: '',
+    stakeholder: '',
+    acceptanceCriteria: '',
+    category: 'must',
+  });
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
   useEffect(() => {
     loadRequirements();
@@ -37,9 +66,12 @@ export default function RequirementsEngineeringScreen() {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
         setRequirements(JSON.parse(stored));
+      } else {
+        setRequirements([]);
       }
     } catch (error) {
       console.error('Error loading requirements:', error);
+      setRequirements([]);
     }
   };
 
@@ -53,29 +85,22 @@ export default function RequirementsEngineeringScreen() {
   };
 
   const addRequirement = () => {
-    if (!newRequirement.trim()) {
-      Alert.alert('Error', 'Please enter a requirement');
+    if (!newReq.title.trim()) {
+      Alert.alert('Error', 'Please enter a requirement title');
       return;
     }
 
     const req = {
       id: Date.now().toString(),
-      text: newRequirement.trim(),
-      category: selectedCategory,
-      createdAt: new Date().toISOString(),
+      title: newReq.title.trim(),
+      stakeholder: newReq.stakeholder.trim() || 'Unassigned',
+      acceptanceCriteria: newReq.acceptanceCriteria.trim() || 'No criteria specified',
+      category: newReq.category,
     };
 
-    const updated = [...requirements, req];
-    saveRequirements(updated);
-    setNewRequirement('');
-    setShowAddModal(false);
-  };
-
-  const updateRequirement = (id, newCategory) => {
-    const updated = requirements.map((req) =>
-      req.id === id ? { ...req, category: newCategory } : req
-    );
-    saveRequirements(updated);
+    saveRequirements([...requirements, req]);
+    setNewReq({ title: '', stakeholder: '', acceptanceCriteria: '', category: 'must' });
+    setShowAddForm(false);
   };
 
   const deleteRequirement = (id) => {
@@ -84,363 +109,178 @@ export default function RequirementsEngineeringScreen() {
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => {
-          const updated = requirements.filter((req) => req.id !== id);
-          saveRequirements(updated);
-        },
+        onPress: () => saveRequirements(requirements.filter((r) => r.id !== id)),
       },
     ]);
   };
 
-  const getRequirementsByCategory = (category) => {
-    return requirements.filter((req) => req.category === category);
-  };
-
-  const clearAll = () => {
-    Alert.alert('Clear All', 'Delete all requirements?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear',
-        style: 'destructive',
-        onPress: () => saveRequirements([]),
-      },
-    ]);
-  };
+  const getRequirementsByCategory = (key) => requirements.filter((r) => r.category === key);
+  const getCategoryLabel = (key) => CATEGORIES.find((c) => c.key === key)?.label || 'Must Have';
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Requirements Engineering</Text>
-        <Text style={styles.subtitle}>MoSCoW Prioritization Method</Text>
-      </View>
-
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setShowAddModal(true)}
-        >
-          <Ionicons name="add-circle" size={20} color="#fff" />
-          <Text style={styles.addButtonText}>Add Requirement</Text>
-        </TouchableOpacity>
-        {requirements.length > 0 && (
-          <TouchableOpacity style={styles.clearButton} onPress={clearAll}>
-            <Ionicons name="trash-outline" size={18} color="#ef4444" />
+        <View style={styles.headerTop}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={20} color="#0F2A71" />
           </TouchableOpacity>
-        )}
+          <View style={styles.headerButtons}>
+            <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddForm(!showAddForm)}>
+              <Ionicons name="add" size={16} color="#111" />
+              <Text style={styles.addBtnText}>Add</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.exportBtn} onPress={() => Alert.alert('Export', 'Exported!')}>
+              <Ionicons name="download-outline" size={16} color="#FFF" />
+              <Text style={styles.exportBtnText}>Export</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <Text style={styles.headerTitle}>MoSCoW Requirements</Text>
+        <Text style={styles.headerSubtitle}>Prioritize and manage requirements</Text>
       </View>
 
-      <ScrollView style={styles.content}>
-        {CATEGORIES.map((category) => (
-          <CategorySection
-            key={category.key}
-            category={category}
-            requirements={getRequirementsByCategory(category.key)}
-            onMove={updateRequirement}
-            onDelete={deleteRequirement}
-          />
-        ))}
-
-        {requirements.length === 0 && (
-          <View style={styles.emptyState}>
-            <Ionicons name="documents-outline" size={64} color="#374151" />
-            <Text style={styles.emptyText}>No requirements yet</Text>
-            <Text style={styles.emptyHint}>
-              Tap "Add Requirement" to start organizing your user stories
-            </Text>
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Add Modal */}
-      <Modal
-        visible={showAddModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowAddModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Requirement</Text>
-              <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <Ionicons name="close" size={24} color="#9ca3af" />
-              </TouchableOpacity>
-            </View>
-
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Add Form */}
+        {showAddForm && (
+          <View style={styles.addFormCard}>
+            <Text style={styles.addFormTitle}>Add New Requirement</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter user story or requirement..."
-              placeholderTextColor="#6b7280"
-              value={newRequirement}
-              onChangeText={setNewRequirement}
+              placeholder="Requirement Title"
+              placeholderTextColor="#9CA3AF"
+              value={newReq.title}
+              onChangeText={(t) => setNewReq({ ...newReq, title: t })}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Stakeholder"
+              placeholderTextColor="#9CA3AF"
+              value={newReq.stakeholder}
+              onChangeText={(t) => setNewReq({ ...newReq, stakeholder: t })}
+            />
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Acceptance Criteria"
+              placeholderTextColor="#9CA3AF"
+              value={newReq.acceptanceCriteria}
+              onChangeText={(t) => setNewReq({ ...newReq, acceptanceCriteria: t })}
               multiline
-              numberOfLines={3}
               textAlignVertical="top"
             />
-
-            <Text style={styles.label}>Priority Category</Text>
-            <View style={styles.categoryPicker}>
-              {CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat.key}
-                  style={[
-                    styles.categoryOption,
-                    selectedCategory === cat.key && {
-                      backgroundColor: cat.color,
-                      borderColor: cat.color,
-                    },
-                  ]}
-                  onPress={() => setSelectedCategory(cat.key)}
-                >
-                  <Text
-                    style={[
-                      styles.categoryOptionText,
-                      selectedCategory === cat.key && styles.categoryOptionTextActive,
-                    ]}
+            <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowCategoryPicker(!showCategoryPicker)}>
+              <Text style={styles.pickerBtnText}>{getCategoryLabel(newReq.category)}</Text>
+              <Ionicons name="chevron-down" size={20} color="#6B7280" />
+            </TouchableOpacity>
+            {showCategoryPicker && (
+              <View style={styles.dropdown}>
+                {CATEGORIES.map((cat) => (
+                  <TouchableOpacity
+                    key={cat.key}
+                    style={[styles.dropdownItem, newReq.category === cat.key && styles.dropdownItemActive]}
+                    onPress={() => { setNewReq({ ...newReq, category: cat.key }); setShowCategoryPicker(false); }}
                   >
-                    {cat.label}
-                  </Text>
-                </TouchableOpacity>
+                    <View style={[styles.dot, { backgroundColor: cat.color }]} />
+                    <Text style={styles.dropdownItemText}>{cat.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            <View style={styles.formBtns}>
+              <TouchableOpacity style={styles.submitBtn} onPress={addRequirement}>
+                <Text style={styles.submitBtnText}>Add Requirement</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowAddForm(false)}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Category Sections */}
+        {CATEGORIES.map((cat) => {
+          const reqs = getRequirementsByCategory(cat.key);
+          return (
+            <View key={cat.key} style={styles.categorySection}>
+              <View style={styles.catHeader}>
+                <View style={[styles.dot, { backgroundColor: cat.color }]} />
+                <Text style={styles.catTitle}>{cat.label}</Text>
+                <View style={[styles.badge, { backgroundColor: cat.color }]}>
+                  <Text style={styles.badgeText}>{reqs.length}</Text>
+                </View>
+              </View>
+              <Text style={styles.catDesc}>{cat.description}</Text>
+              {reqs.map((req) => (
+                <View key={req.id} style={[styles.reqCard, { borderLeftColor: cat.color }]}>
+                  <View style={styles.cardRow}>
+                    <View style={styles.dragHandle}>
+                      <Ionicons name="ellipsis-vertical" size={14} color="#9CA3AF" />
+                      <Ionicons name="ellipsis-vertical" size={14} color="#9CA3AF" style={{ marginLeft: -8 }} />
+                    </View>
+                    <View style={styles.cardBody}>
+                      <Text style={styles.reqTitle}>{req.title}</Text>
+                      <Text style={styles.reqStakeholder}>{req.stakeholder}</Text>
+                      <View style={[styles.criteriaBox, { backgroundColor: cat.bgColor }]}>
+                        <Text style={styles.criteriaText}>{req.acceptanceCriteria}</Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteRequirement(req.id)}>
+                      <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
               ))}
             </View>
-
-            <TouchableOpacity style={styles.saveButton} onPress={addRequirement}>
-              <Text style={styles.saveButtonText}>Add to Board</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    </View>
-  );
-}
-
-function CategorySection({ category, requirements, onMove, onDelete }) {
-  const [expanded, setExpanded] = useState(true);
-
-  return (
-    <View style={styles.categorySection}>
-      <TouchableOpacity
-        style={[styles.categoryHeader, { borderLeftColor: category.color }]}
-        onPress={() => setExpanded(!expanded)}
-      >
-        <View style={styles.categoryHeaderLeft}>
-          <Ionicons name={category.icon} size={20} color={category.color} />
-          <Text style={styles.categoryTitle}>{category.label}</Text>
-          <View style={[styles.badge, { backgroundColor: category.color }]}>
-            <Text style={styles.badgeText}>{requirements.length}</Text>
-          </View>
-        </View>
-        <Ionicons
-          name={expanded ? 'chevron-up' : 'chevron-down'}
-          size={20}
-          color="#9ca3af"
-        />
-      </TouchableOpacity>
-
-      {expanded && (
-        <View style={styles.requirementsList}>
-          {requirements.length === 0 ? (
-            <Text style={styles.emptyCategory}>No items in this category</Text>
-          ) : (
-            requirements.map((req) => (
-              <RequirementCard
-                key={req.id}
-                requirement={req}
-                category={category}
-                onMove={onMove}
-                onDelete={onDelete}
-              />
-            ))
-          )}
-        </View>
-      )}
-    </View>
-  );
-}
-
-function RequirementCard({ requirement, category, onMove, onDelete }) {
-  const [showActions, setShowActions] = useState(false);
-
-  const moveToCategory = (newCategory) => {
-    onMove(requirement.id, newCategory);
-    setShowActions(false);
-  };
-
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardContent}>
-        <Text style={styles.cardText}>{requirement.text}</Text>
-        <Text style={styles.cardDate}>
-          {new Date(requirement.createdAt).toLocaleDateString()}
-        </Text>
-      </View>
-      <View style={styles.cardActions}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => setShowActions(!showActions)}
-        >
-          <Ionicons name="swap-horizontal" size={20} color="#3b82f6" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => onDelete(requirement.id)}
-        >
-          <Ionicons name="trash-outline" size={20} color="#ef4444" />
-        </TouchableOpacity>
-      </View>
-
-      {showActions && (
-        <View style={styles.moveMenu}>
-          <Text style={styles.moveMenuTitle}>Move to:</Text>
-          {CATEGORIES.filter((cat) => cat.key !== category.key).map((cat) => (
-            <TouchableOpacity
-              key={cat.key}
-              style={styles.moveOption}
-              onPress={() => moveToCategory(cat.key)}
-            >
-              <Ionicons name={cat.icon} size={16} color={cat.color} />
-              <Text style={styles.moveOptionText}>{cat.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+          );
+        })}
+        <View style={{ height: 100 }} />
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#020617' },
-  header: { padding: 20, borderBottomWidth: 1, borderBottomColor: '#1f2937' },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
-  subtitle: { fontSize: 14, color: '#9ca3af' },
-  actions: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
-  },
-  addButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#facc15',
-    padding: 12,
-    borderRadius: 8,
-    gap: 8,
-  },
-  addButtonText: { color: '#000', fontWeight: 'bold', fontSize: 14 },
-  clearButton: {
-    backgroundColor: '#111827',
-    borderWidth: 1,
-    borderColor: '#ef4444',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  content: { flex: 1 },
-  categorySection: { marginBottom: 16 },
-  categoryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#111827',
-    padding: 16,
-    borderLeftWidth: 4,
-  },
-  categoryHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  categoryTitle: { fontSize: 16, fontWeight: '600', color: '#fff' },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    minWidth: 24,
-    alignItems: 'center',
-  },
-  badgeText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  requirementsList: { backgroundColor: '#0a0f1e', padding: 12 },
-  emptyCategory: { color: '#6b7280', textAlign: 'center', padding: 16 },
-  card: {
-    backgroundColor: '#111827',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#1f2937',
-  },
-  cardContent: { marginBottom: 8 },
-  cardText: { color: '#e5e7eb', fontSize: 14, lineHeight: 20, marginBottom: 4 },
-  cardDate: { color: '#6b7280', fontSize: 11 },
-  cardActions: { flexDirection: 'row', gap: 8, justifyContent: 'flex-end' },
-  actionButton: { padding: 4 },
-  moveMenu: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#1f2937',
-  },
-  moveMenuTitle: { color: '#9ca3af', fontSize: 12, marginBottom: 8 },
-  moveOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 8,
-    backgroundColor: '#0a0f1e',
-    borderRadius: 6,
-    marginBottom: 4,
-  },
-  moveOptionText: { color: '#d1d5db', fontSize: 13 },
-  emptyState: { alignItems: 'center', padding: 48 },
-  emptyText: { color: '#9ca3af', fontSize: 18, marginTop: 16, fontWeight: '500' },
-  emptyHint: { color: '#6b7280', fontSize: 14, marginTop: 8, textAlign: 'center' },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#111827',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    minHeight: 400,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
-  input: {
-    backgroundColor: '#0a0f1e',
-    color: '#fff',
-    borderWidth: 1,
-    borderColor: '#374151',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 20,
-    minHeight: 80,
-    fontSize: 14,
-  },
-  label: { color: '#9ca3af', fontSize: 14, marginBottom: 12, fontWeight: '500' },
-  categoryPicker: { flexDirection: 'column', gap: 8, marginBottom: 20 },
-  categoryOption: {
-    padding: 14,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#374151',
-    backgroundColor: '#0a0f1e',
-  },
-  categoryOptionText: { color: '#9ca3af', fontSize: 14, fontWeight: '500' },
-  categoryOptionTextActive: { color: '#fff' },
-  saveButton: {
-    backgroundColor: '#facc15',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  saveButtonText: { color: '#000', fontWeight: 'bold', fontSize: 16 },
+  container: { flex: 1, backgroundColor: '#FAFAFA' },
+  header: { backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#E8E8E8', paddingHorizontal: 16, paddingTop: 40, paddingBottom: 16 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  backButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  headerButtons: { flexDirection: 'row', gap: 8 },
+  addBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F5F5F5', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, gap: 6 },
+  addBtnText: { fontSize: 14, color: '#111', fontWeight: '500' },
+  exportBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0F2A71', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, gap: 6 },
+  exportBtnText: { fontSize: 14, color: '#FFF', fontWeight: '500' },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: '#FFB800', marginBottom: 4 },
+  headerSubtitle: { fontSize: 14, color: '#6B6B6B' },
+  content: { flex: 1, padding: 16 },
+  addFormCard: { backgroundColor: '#FFF', borderRadius: 16, borderWidth: 1, borderColor: '#E8E8E8', padding: 16, marginBottom: 16 },
+  addFormTitle: { fontSize: 16, fontWeight: '600', color: '#111', marginBottom: 12 },
+  input: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E8E8E8', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#111', marginBottom: 12 },
+  textArea: { minHeight: 70, textAlignVertical: 'top' },
+  pickerBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E8E8E8', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12 },
+  pickerBtnText: { fontSize: 14, color: '#111' },
+  dropdown: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E8E8E8', borderRadius: 8, marginBottom: 12, overflow: 'hidden' },
+  dropdownItem: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 8, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+  dropdownItemActive: { backgroundColor: '#F5F5F5' },
+  dropdownItemText: { fontSize: 14, color: '#111' },
+  formBtns: { flexDirection: 'row', gap: 8 },
+  submitBtn: { flex: 1, backgroundColor: '#0F2A71', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  submitBtnText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
+  cancelBtn: { flex: 1, backgroundColor: '#F5F5F5', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  cancelBtnText: { fontSize: 14, fontWeight: '500', color: '#111' },
+  categorySection: { backgroundColor: '#FFF', borderRadius: 16, borderWidth: 1, borderColor: '#E8E8E8', padding: 16, marginBottom: 16 },
+  catHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  dot: { width: 12, height: 12, borderRadius: 6 },
+  catTitle: { fontSize: 16, fontWeight: '600', color: '#111' },
+  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, minWidth: 24, alignItems: 'center' },
+  badgeText: { fontSize: 12, fontWeight: '600', color: '#FFF' },
+  catDesc: { fontSize: 12, color: '#6B6B6B', marginBottom: 12 },
+  reqCard: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E8E8E8', borderLeftWidth: 4, borderRadius: 12, marginBottom: 8 },
+  cardRow: { flexDirection: 'row', padding: 12, alignItems: 'flex-start' },
+  dragHandle: { flexDirection: 'row', marginRight: 8, marginTop: 4 },
+  cardBody: { flex: 1 },
+  reqTitle: { fontSize: 14, fontWeight: '600', color: '#111', marginBottom: 4 },
+  reqStakeholder: { fontSize: 12, color: '#6B6B6B', marginBottom: 8 },
+  criteriaBox: { borderRadius: 8, padding: 8 },
+  criteriaText: { fontSize: 12, color: '#111', lineHeight: 18 },
+  deleteBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
 });

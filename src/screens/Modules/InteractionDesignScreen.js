@@ -1,456 +1,617 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
-  Modal,
   Dimensions,
+  Alert,
   PanResponder,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const STORAGE_KEY = '@wireframe_design';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CANVAS_WIDTH = SCREEN_WIDTH - 40;
+const CANVAS_WIDTH = SCREEN_WIDTH - 64;
+const CANVAS_HEIGHT = 400;
+const STORAGE_KEY = '@diagram_builder';
 
-const COMPONENTS = [
-  { id: 'button', label: 'Button', icon: 'square-outline', width: 120, height: 40 },
-  { id: 'input', label: 'Input', icon: 'create-outline', width: 160, height: 40 },
-  { id: 'text', label: 'Text', icon: 'text-outline', width: 100, height: 24 },
-  { id: 'image', label: 'Image', icon: 'image-outline', width: 100, height: 100 },
-  { id: 'card', label: 'Card', icon: 'document-outline', width: 140, height: 120 },
-  { id: 'nav', label: 'Navbar', icon: 'menu-outline', width: CANVAS_WIDTH - 20, height: 50 },
+const TEMPLATES = [
+  { id: 'blank', label: 'Blank Canvas' },
+  { id: 'flowchart', label: 'Flowchart' },
+  { id: 'process', label: 'Process Flow' },
+];
+
+const TOOLS = [
+  { id: 'select', icon: 'move-outline', label: 'Select' },
+  { id: 'rectangle', icon: 'square-outline', label: 'Rectangle' },
+  { id: 'circle', icon: 'ellipse-outline', label: 'Circle' },
+  { id: 'diamond', icon: 'diamond-outline', label: 'Diamond' },
+  { id: 'line', icon: 'remove-outline', label: 'Line' },
+  { id: 'text', icon: 'text-outline', label: 'Text' },
+];
+
+const FLOWCHART_TEMPLATE = [
+  { id: 'start', type: 'circle', x: CANVAS_WIDTH / 2 - 30, y: 20, width: 60, height: 60, label: 'Start' },
+  { id: 'process1', type: 'rectangle', x: CANVAS_WIDTH / 2 - 50, y: 100, width: 100, height: 50, label: 'Process' },
+  { id: 'decision', type: 'diamond', x: CANVAS_WIDTH / 2 - 40, y: 180, width: 80, height: 80, label: 'Decision' },
+  { id: 'end', type: 'circle', x: CANVAS_WIDTH / 2 - 30, y: 290, width: 60, height: 60, label: 'End' },
+];
+
+const PROCESS_TEMPLATE = [
+  { id: 'step1', type: 'rectangle', x: 20, y: 30, width: 80, height: 40, label: 'Step 1' },
+  { id: 'step2', type: 'rectangle', x: 120, y: 30, width: 80, height: 40, label: 'Step 2' },
+  { id: 'step3', type: 'rectangle', x: 220, y: 30, width: 80, height: 40, label: 'Step 3' },
 ];
 
 export default function InteractionDesignScreen() {
+  const navigation = useNavigation();
+  const [selectedTemplate, setSelectedTemplate] = useState('blank');
+  const [selectedTool, setSelectedTool] = useState('select');
   const [elements, setElements] = useState([]);
-  const [showToolbox, setShowToolbox] = useState(true);
   const [selectedElement, setSelectedElement] = useState(null);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
 
   useEffect(() => {
-    loadDesign();
+    loadDiagram();
   }, []);
 
-  const loadDesign = async () => {
+  const loadDiagram = async () => {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
         setElements(JSON.parse(stored));
       }
     } catch (error) {
-      console.error('Error loading design:', error);
+      console.error('Error loading diagram:', error);
     }
   };
 
-  const saveDesign = async (els) => {
+  const saveDiagram = async (data) => {
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(els));
-      setElements(els);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      setElements(data);
     } catch (error) {
-      console.error('Error saving design:', error);
+      console.error('Error saving diagram:', error);
     }
   };
 
-  const addElement = (component) => {
-    const element = {
-      id: `${component.id}-${Date.now()}`,
-      type: component.id,
-      label: component.label,
-      icon: component.icon,
-      x: 20,
-      y: 100 + elements.length * 20,
-      width: component.width,
-      height: component.height,
+  const handleTemplateSelect = (templateId) => {
+    setSelectedTemplate(templateId);
+    
+    if (templateId === 'blank') {
+      if (elements.length > 0) {
+        Alert.alert('Clear Canvas', 'Remove all elements?', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Clear', style: 'destructive', onPress: () => saveDiagram([]) },
+        ]);
+      }
+    } else if (templateId === 'flowchart') {
+      Alert.alert('Load Template', 'Load Flowchart template?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Load', onPress: () => saveDiagram(FLOWCHART_TEMPLATE) },
+      ]);
+    } else if (templateId === 'process') {
+      Alert.alert('Load Template', 'Load Process Flow template?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Load', onPress: () => saveDiagram(PROCESS_TEMPLATE) },
+      ]);
+    }
+  };
+
+  const handleCanvasTap = (event) => {
+    if (selectedTool === 'select') {
+      setSelectedElement(null);
+      return;
+    }
+
+    const { locationX, locationY } = event.nativeEvent;
+    
+    const newElement = {
+      id: `${selectedTool}-${Date.now()}`,
+      type: selectedTool,
+      x: Math.max(0, locationX - 40),
+      y: Math.max(0, locationY - 25),
+      width: selectedTool === 'circle' ? 60 : selectedTool === 'diamond' ? 80 : selectedTool === 'line' ? 100 : 80,
+      height: selectedTool === 'circle' ? 60 : selectedTool === 'diamond' ? 80 : selectedTool === 'line' ? 4 : 50,
+      label: selectedTool === 'text' ? 'Text' : '',
     };
-    saveDesign([...elements, element]);
-    setShowToolbox(false);
+
+    saveDiagram([...elements, newElement]);
+  };
+
+  const handleElementSelect = (element) => {
+    if (selectedTool === 'select') {
+      setSelectedElement(element);
+    }
+  };
+
+  const deleteSelectedElement = () => {
+    if (selectedElement) {
+      Alert.alert('Delete Element', 'Remove this element?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            const updated = elements.filter((el) => el.id !== selectedElement.id);
+            saveDiagram(updated);
+            setSelectedElement(null);
+          },
+        },
+      ]);
+    }
   };
 
   const updateElementPosition = (id, x, y) => {
     const updated = elements.map((el) =>
-      el.id === id ? { ...el, x, y } : el
+      el.id === id ? { ...el, x: Math.max(0, x), y: Math.max(0, y) } : el
     );
-    saveDesign(updated);
+    saveDiagram(updated);
   };
 
-  const deleteElement = (id) => {
-    Alert.alert('Delete Element', 'Remove this element?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          const updated = elements.filter((el) => el.id !== id);
-          saveDesign(updated);
-          setSelectedElement(null);
-        },
-      },
-    ]);
-  };
-
-  const clearCanvas = () => {
-    Alert.alert('Clear Canvas', 'Remove all elements?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear',
-        style: 'destructive',
-        onPress: () => saveDesign([]),
-      },
-    ]);
+  const handleDownload = () => {
+    Alert.alert('Export', 'Diagram data exported successfully!');
   };
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Interaction Design</Text>
-        <Text style={styles.subtitle}>Wireframe Playground</Text>
-      </View>
-
-      <View style={styles.toolbar}>
-        <TouchableOpacity
-          style={[styles.toolButton, showToolbox && styles.toolButtonActive]}
-          onPress={() => setShowToolbox(!showToolbox)}
-        >
-          <Ionicons
-            name="construct"
-            size={18}
-            color={showToolbox ? '#000' : '#fff'}
-          />
-          <Text
-            style={[
-              styles.toolButtonText,
-              showToolbox && styles.toolButtonTextActive,
-            ]}
-          >
-            Components
-          </Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.toolButton} onPress={clearCanvas}>
-          <Ionicons name="trash-outline" size={18} color="#fff" />
+        <TouchableOpacity style={styles.downloadButton} onPress={handleDownload}>
+          <Ionicons name="download-outline" size={18} color="#FFFFFF" />
+          <Text style={styles.downloadButtonText}>Download</Text>
         </TouchableOpacity>
       </View>
 
-      {showToolbox && (
-        <View style={styles.toolbox}>
-          <Text style={styles.toolboxTitle}>Add Component:</Text>
+      {/* Title */}
+      <View style={styles.titleContainer}>
+        <Text style={styles.title}>Diagram Builder</Text>
+        <Text style={styles.subtitle}>Create interactive diagrams</Text>
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} scrollEnabled={scrollEnabled}>
+        {/* Templates Card */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Templates</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.components}>
-              {COMPONENTS.map((comp) => (
+            <View style={styles.templatesRow}>
+              {TEMPLATES.map((template) => (
                 <TouchableOpacity
-                  key={comp.id}
-                  style={styles.component}
-                  onPress={() => addElement(comp)}
+                  key={template.id}
+                  style={[
+                    styles.templatePill,
+                    selectedTemplate === template.id && styles.templatePillActive,
+                  ]}
+                  onPress={() => handleTemplateSelect(template.id)}
                 >
-                  <Ionicons name={comp.icon} size={24} color="#3b82f6" />
-                  <Text style={styles.componentLabel}>{comp.label}</Text>
+                  <Text
+                    style={[
+                      styles.templatePillText,
+                      selectedTemplate === template.id && styles.templatePillTextActive,
+                    ]}
+                  >
+                    {template.label}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
           </ScrollView>
         </View>
-      )}
 
-      <ScrollView style={styles.canvasScroll}>
-        <View style={[styles.canvas, { width: CANVAS_WIDTH }]}>
-          {elements.map((element) => (
-            <DraggableElement
-              key={element.id}
-              element={element}
-              selected={selectedElement?.id === element.id}
-              onSelect={() => setSelectedElement(element)}
-              onMove={(x, y) => updateElementPosition(element.id, x, y)}
-              onDelete={() => deleteElement(element.id)}
-            />
-          ))}
-
-          {elements.length === 0 && (
-            <View style={styles.emptyCanvas}>
-              <Ionicons name="phone-portrait-outline" size={64} color="#374151" />
-              <Text style={styles.emptyText}>Empty Canvas</Text>
-              <Text style={styles.emptyHint}>
-                Tap "Components" to start designing
-              </Text>
-            </View>
-          )}
-        </View>
-      </ScrollView>
-
-      {selectedElement && (
-        <View style={styles.inspector}>
-          <View style={styles.inspectorHeader}>
-            <Text style={styles.inspectorTitle}>{selectedElement.label}</Text>
-            <TouchableOpacity onPress={() => setSelectedElement(null)}>
-              <Ionicons name="close" size={20} color="#9ca3af" />
-            </TouchableOpacity>
+        {/* Tools Card */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Tools</Text>
+          <View style={styles.toolsRow}>
+            {TOOLS.map((tool) => (
+              <TouchableOpacity
+                key={tool.id}
+                style={[
+                  styles.toolButton,
+                  selectedTool === tool.id && styles.toolButtonActive,
+                ]}
+                onPress={() => setSelectedTool(tool.id)}
+              >
+                <Ionicons
+                  name={tool.icon}
+                  size={22}
+                  color={selectedTool === tool.id ? '#FFFFFF' : '#6B7280'}
+                />
+              </TouchableOpacity>
+            ))}
           </View>
-          <View style={styles.inspectorContent}>
-            <Text style={styles.inspectorLabel}>
+          <Text style={styles.toolHint}>
+            {selectedTool === 'select' 
+              ? 'Drag to move, long press to delete' 
+              : `Tap canvas to add ${TOOLS.find(t => t.id === selectedTool)?.label}`}
+          </Text>
+        </View>
+
+        {/* Canvas Card */}
+        <View style={styles.canvasCard}>
+          <View style={styles.canvasHeader}>
+            <Text style={styles.canvasTitle}>Canvas</Text>
+            <Text style={styles.canvasSubtitle}>{elements.length} elements</Text>
+          </View>
+          <View
+            style={styles.canvas}
+            onTouchEnd={(e) => {
+              if (selectedTool !== 'select') {
+                handleCanvasTap(e);
+              }
+            }}
+          >
+            {elements.map((element) => (
+              <DraggableElement
+                key={element.id}
+                element={element}
+                isSelected={selectedElement?.id === element.id}
+                onSelect={() => handleElementSelect(element)}
+                onMove={(x, y) => updateElementPosition(element.id, x, y)}
+                onDelete={() => deleteSelectedElement()}
+                canDrag={selectedTool === 'select'}
+                onDragStart={() => setScrollEnabled(false)}
+                onDragEnd={() => setScrollEnabled(true)}
+              />
+            ))}
+            
+            {elements.length === 0 && (
+              <View style={styles.emptyCanvas}>
+                <Ionicons name="shapes-outline" size={48} color="#D1D5DB" />
+                <Text style={styles.emptyText}>Empty Canvas</Text>
+                <Text style={styles.emptyHint}>
+                  Select a tool and tap here to add shapes
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Selected Element Info */}
+        {selectedElement && (
+          <View style={styles.inspectorCard}>
+            <View style={styles.inspectorHeader}>
+              <Text style={styles.inspectorTitle}>Selected: {selectedElement.type}</Text>
+              <TouchableOpacity onPress={deleteSelectedElement}>
+                <Ionicons name="trash-outline" size={20} color="#EF4444" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.inspectorInfo}>
               Position: ({Math.round(selectedElement.x)}, {Math.round(selectedElement.y)})
             </Text>
-            <Text style={styles.inspectorLabel}>
+            <Text style={styles.inspectorInfo}>
               Size: {selectedElement.width} × {selectedElement.height}
             </Text>
           </View>
-        </View>
-      )}
+        )}
+      </ScrollView>
     </View>
   );
 }
 
-function DraggableElement({ element, selected, onSelect, onMove, onDelete }) {
-  const [position, setPosition] = useState({ x: element.x, y: element.y });
+// Draggable Element Component
+function DraggableElement({ element, isSelected, onSelect, onMove, onDelete, canDrag, onDragStart, onDragEnd }) {
+  const pan = useRef(new Animated.ValueXY({ x: element.x, y: element.y })).current;
+  const isDragging = useRef(false);
+
+  useEffect(() => {
+    if (!isDragging.current) {
+      pan.setValue({ x: element.x, y: element.y });
+    }
+  }, [element.x, element.y]);
 
   const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
+    onStartShouldSetPanResponder: () => canDrag,
+    onMoveShouldSetPanResponder: (_, gestureState) => {
+      // Only capture move if significant movement detected and canDrag is true
+      return canDrag && (Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2);
+    },
     onPanResponderGrant: () => {
-      onSelect();
+      if (canDrag) {
+        isDragging.current = true;
+        onDragStart && onDragStart();
+        onSelect();
+        pan.setOffset({
+          x: pan.x._value,
+          y: pan.y._value,
+        });
+        pan.setValue({ x: 0, y: 0 });
+      }
     },
-    onPanResponderMove: (_, gesture) => {
-      const newX = Math.max(0, Math.min(CANVAS_WIDTH - element.width, element.x + gesture.dx));
-      const newY = Math.max(0, element.y + gesture.dy);
-      setPosition({ x: newX, y: newY });
+    onPanResponderMove: canDrag 
+      ? Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false })
+      : undefined,
+    onPanResponderRelease: () => {
+      if (canDrag && isDragging.current) {
+        isDragging.current = false;
+        onDragEnd && onDragEnd();
+        pan.flattenOffset();
+        const newX = Math.max(0, Math.min(CANVAS_WIDTH - element.width, pan.x._value));
+        const newY = Math.max(0, Math.min(CANVAS_HEIGHT - element.height, pan.y._value));
+        pan.setValue({ x: newX, y: newY });
+        onMove(newX, newY);
+      } else {
+        pan.flattenOffset();
+      }
     },
-    onPanResponderRelease: (_, gesture) => {
-      const newX = Math.max(0, Math.min(CANVAS_WIDTH - element.width, element.x + gesture.dx));
-      const newY = Math.max(0, element.y + gesture.dy);
-      onMove(newX, newY);
+    onPanResponderTerminate: () => {
+      isDragging.current = false;
+      onDragEnd && onDragEnd();
+      pan.flattenOffset();
     },
   });
 
-  const getElementStyle = () => {
-    const baseStyle = {
-      position: 'absolute',
-      left: position.x,
-      top: position.y,
-      width: element.width,
-      height: element.height,
-    };
-
+  const getShapeStyle = () => {
     switch (element.type) {
-      case 'button':
-        return {
-          ...baseStyle,
-          backgroundColor: '#3b82f6',
-          borderRadius: 6,
-          justifyContent: 'center',
-          alignItems: 'center',
-        };
-      case 'input':
-        return {
-          ...baseStyle,
-          backgroundColor: '#fff',
-          borderWidth: 1,
-          borderColor: '#d1d5db',
-          borderRadius: 6,
-          paddingHorizontal: 8,
-          justifyContent: 'center',
-        };
+      case 'rectangle':
+        return { backgroundColor: '#EFF6FF', borderRadius: 4 };
+      case 'circle':
+        return { backgroundColor: '#F0FDF4', borderRadius: element.width / 2 };
+      case 'diamond':
+        return { backgroundColor: '#FEF3C7', transform: [{ rotate: '45deg' }] };
+      case 'line':
+        return { backgroundColor: '#374151', height: 3, borderWidth: 0 };
       case 'text':
-        return {
-          ...baseStyle,
-          justifyContent: 'center',
-        };
-      case 'image':
-        return {
-          ...baseStyle,
-          backgroundColor: '#e5e7eb',
-          borderRadius: 4,
-          justifyContent: 'center',
-          alignItems: 'center',
-        };
-      case 'card':
-        return {
-          ...baseStyle,
-          backgroundColor: '#fff',
-          borderRadius: 8,
-          padding: 12,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 3,
-        };
-      case 'nav':
-        return {
-          ...baseStyle,
-          backgroundColor: '#1f2937',
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: 16,
-        };
+        return { backgroundColor: 'transparent', borderStyle: 'dashed' };
       default:
-        return baseStyle;
-    }
-  };
-
-  const renderElementContent = () => {
-    switch (element.type) {
-      case 'button':
-        return <Text style={{ color: '#fff', fontSize: 14 }}>Button</Text>;
-      case 'input':
-        return <Text style={{ color: '#9ca3af', fontSize: 13 }}>Input field</Text>;
-      case 'text':
-        return <Text style={{ color: '#111827', fontSize: 14 }}>Lorem ipsum</Text>;
-      case 'image':
-        return <Ionicons name="image-outline" size={32} color="#9ca3af" />;
-      case 'card':
-        return (
-          <>
-            <View
-              style={{
-                width: '100%',
-                height: 8,
-                backgroundColor: '#e5e7eb',
-                borderRadius: 4,
-                marginBottom: 8,
-              }}
-            />
-            <View
-              style={{
-                width: '80%',
-                height: 8,
-                backgroundColor: '#e5e7eb',
-                borderRadius: 4,
-                marginBottom: 4,
-              }}
-            />
-            <View
-              style={{
-                width: '60%',
-                height: 8,
-                backgroundColor: '#e5e7eb',
-                borderRadius: 4,
-              }}
-            />
-          </>
-        );
-      case 'nav':
-        return (
-          <>
-            <Ionicons name="menu" size={24} color="#fff" />
-            <Text style={{ color: '#fff', fontSize: 16, marginLeft: 16 }}>App Name</Text>
-          </>
-        );
-      default:
-        return null;
+        return { backgroundColor: '#F3F4F6' };
     }
   };
 
   return (
-    <View
+    <Animated.View
       {...panResponder.panHandlers}
       style={[
-        getElementStyle(),
-        selected && styles.selectedElement,
+        styles.draggableElement,
+        {
+          left: pan.x,
+          top: pan.y,
+          width: element.width,
+          height: element.height,
+          borderWidth: isSelected ? 2 : 1,
+          borderColor: isSelected ? '#FBBC04' : '#374151',
+        },
+        getShapeStyle(),
       ]}
     >
-      {renderElementContent()}
-      {selected && (
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={onDelete}
-        >
-          <Ionicons name="close-circle" size={20} color="#ef4444" />
-        </TouchableOpacity>
+      <View style={styles.elementTouchable}>
+        {element.label && element.type !== 'diamond' && (
+          <Text style={styles.elementLabel} numberOfLines={1}>
+            {element.label}
+          </Text>
+        )}
+        {element.type === 'diamond' && element.label && (
+          <Text style={[styles.elementLabel, { transform: [{ rotate: '-45deg' }] }]} numberOfLines={1}>
+            {element.label}
+          </Text>
+        )}
+      </View>
+      {isSelected && canDrag && (
+        <View style={styles.dragHandle}>
+          <Ionicons name="move" size={12} color="#FBBC04" />
+        </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#020617' },
-  header: { padding: 20, borderBottomWidth: 1, borderBottomColor: '#1f2937' },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
-  subtitle: { fontSize: 14, color: '#9ca3af' },
-  toolbar: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+  container: {
+    flex: 1,
+    backgroundColor: '#FAFAFA',
   },
-  toolButton: {
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 48,
+    paddingBottom: 12,
+    backgroundColor: '#FAFAFA',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  downloadButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#0F2A71',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 6,
+  },
+  downloadButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  titleContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FBBC04',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  templatesRow: {
+    flexDirection: 'row',
     gap: 8,
-    backgroundColor: '#111827',
+  },
+  templatePill: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
+  },
+  templatePillActive: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#D1D5DB',
+  },
+  templatePillText: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  templatePillTextActive: {
+    color: '#1F2937',
+    fontWeight: '500',
+  },
+  toolsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  toolButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
   },
   toolButtonActive: {
-    backgroundColor: '#facc15',
-    borderColor: '#facc15',
+    backgroundColor: '#0F2A71',
+    borderColor: '#0F2A71',
   },
-  toolButtonText: { color: '#fff', fontSize: 14, fontWeight: '500' },
-  toolButtonTextActive: { color: '#000' },
-  toolbox: {
-    backgroundColor: '#111827',
+  toolHint: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 12,
+    fontStyle: 'italic',
+  },
+  canvasCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    marginBottom: 12,
   },
-  toolboxTitle: { color: '#9ca3af', fontSize: 12, marginBottom: 12 },
-  components: { flexDirection: 'row', gap: 12 },
-  component: {
+  canvasHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#0a0f1e',
-    padding: 12,
+    marginBottom: 12,
+  },
+  canvasTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  canvasSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  canvas: {
+    width: '100%',
+    height: 400,
+    backgroundColor: '#FAFAFA',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#374151',
-    minWidth: 80,
-  },
-  componentLabel: { color: '#d1d5db', fontSize: 11, marginTop: 6 },
-  canvasScroll: { flex: 1 },
-  canvas: {
-    minHeight: 800,
-    backgroundColor: '#f3f4f6',
-    margin: 20,
-    borderRadius: 12,
+    borderColor: '#E5E7EB',
     position: 'relative',
-    padding: 10,
+    overflow: 'hidden',
   },
   emptyCanvas: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 100,
   },
-  emptyText: { color: '#6b7280', fontSize: 18, marginTop: 16, fontWeight: '500' },
-  emptyHint: { color: '#9ca3af', fontSize: 14, marginTop: 8 },
-  selectedElement: {
-    borderWidth: 2,
-    borderColor: '#facc15',
-    borderStyle: 'dashed',
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#9CA3AF',
+    marginTop: 12,
   },
-  deleteButton: {
+  emptyHint: {
+    fontSize: 12,
+    color: '#D1D5DB',
+    marginTop: 4,
+  },
+  elementLabel: {
+    fontSize: 10,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  draggableElement: {
     position: 'absolute',
-    top: -10,
-    right: -10,
-    backgroundColor: '#fff',
-    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  inspector: {
-    backgroundColor: '#111827',
-    borderTopWidth: 1,
-    borderTopColor: '#374151',
+  elementTouchable: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dragHandle: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FBBC04',
+  },
+  inspectorCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: '#FBBC04',
   },
   inspectorHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    marginBottom: 8,
   },
-  inspectorTitle: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  inspectorContent: { padding: 16 },
-  inspectorLabel: { color: '#9ca3af', fontSize: 13, marginBottom: 8 },
+  inspectorTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    textTransform: 'capitalize',
+  },
+  inspectorInfo: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+  },
 });

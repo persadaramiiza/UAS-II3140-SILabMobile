@@ -116,22 +116,22 @@ export default function AppNavigator() {
           <Stack.Screen 
             name="RequirementsEngineering" 
             component={RequirementsEngineeringScreen} 
-            options={{ headerShown: true, title: 'Requirements Engineering' }} 
+            options={{ headerShown: false }} 
           />
           <Stack.Screen 
             name="EnterpriseArchitecture" 
             component={EnterpriseArchitectureScreen} 
-            options={{ headerShown: true, title: 'Enterprise Architecture' }} 
+            options={{ headerShown: false }} 
           />
           <Stack.Screen 
             name="InteractionDesign" 
             component={InteractionDesignScreen} 
-            options={{ headerShown: true, title: 'Interaction Design' }} 
+            options={{ headerShown: false }} 
           />
           <Stack.Screen 
             name="ERDBuilder" 
             component={ERDBuilderScreen} 
-            options={{ headerShown: true, title: 'ERD Builder' }} 
+            options={{ headerShown: false }} 
           />
 
           <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} options={{ headerShown: true, title: 'Edit Profile' }} />
