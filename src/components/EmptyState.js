@@ -1,20 +1,27 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-
+import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Button } from './';
+import { colors, spacing, typography } from '../theme'; 
 export default function EmptyState({ 
   message = 'Tidak ada data', 
   description, 
   actionText, 
-  onAction 
+  onAction,
+  icon = 'folder-open-outline'
 }) {
   return (
     <View style={styles.container}>
+      <Ionicons name={icon} size={64} color={colors.text.secondary} />
       <Text style={styles.message}>{message}</Text>
       {description && <Text style={styles.description}>{description}</Text>}
       {actionText && onAction && (
-        <TouchableOpacity style={styles.button} onPress={onAction}>
-          <Text style={styles.buttonText}>{actionText}</Text>
-        </TouchableOpacity>
+        <Button
+          title={actionText}
+          onPress={onAction}
+          variant="primary"
+          style={{ marginTop: spacing.lg }}
+        />
       )}
     </View>
   );
@@ -25,29 +32,19 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: spacing.xl,
   },
   message: {
-    color: '#9ca3af',
-    fontSize: 18,
-    fontWeight: '600',
+    ...typography.heading3,
+    color: colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 8,
+    marginTop: spacing.lg,
+    marginBottom: spacing.xs,
   },
   description: {
-    color: '#6b7280',
-    fontSize: 14,
+    ...typography.body,
+    color: colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 20,
-  },
-  button: {
-    backgroundColor: '#facc15',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: '#000',
-    fontWeight: 'bold',
+    marginBottom: spacing.md,
   },
 });

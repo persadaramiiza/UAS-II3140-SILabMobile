@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme';
 
 // Screens
 import LoginScreen from '../screens/Auth/LoginScreen';
@@ -32,9 +33,9 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const commonHeaderStyle = {
-  headerStyle: { backgroundColor: '#020617' },
-  headerTintColor: '#facc15',
-  contentStyle: { backgroundColor: '#020617' },
+  headerStyle: { backgroundColor: colors.background.primary },
+  headerTintColor: colors.primary,
+  contentStyle: { backgroundColor: colors.background.primary },
 };
 
 function HomeTabs() {
@@ -42,17 +43,28 @@ function HomeTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         ...commonHeaderStyle,
-        tabBarStyle: { backgroundColor: '#020617', borderTopColor: '#1f2937' },
-        tabBarActiveTintColor: '#facc15',
-        tabBarInactiveTintColor: '#6b7280',
-        tabBarIcon: ({ color, size }) => {
+        tabBarStyle: { 
+          backgroundColor: colors.background.primary,
+          borderTopColor: colors.border.light,
+          borderTopWidth: 1,
+          paddingBottom: 5,
+          paddingTop: 5,
+          height: 60,
+        },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.text.secondary,
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
+        tabBarIcon: ({ color, size, focused }) => {
           let iconName;
-          if (route.name === 'Home') iconName = 'home';
-          else if (route.name === 'Modul') iconName = 'library';
-          else if (route.name === 'Tugas') iconName = 'list';
-          else if (route.name === 'Quiz') iconName = 'school';
-          else if (route.name === 'Akun') iconName = 'person';
-          return <Ionicons name={iconName} size={size} color={color} />;
+          if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
+          else if (route.name === 'Modul') iconName = focused ? 'library' : 'library-outline';
+          else if (route.name === 'Tugas') iconName = focused ? 'list' : 'list-outline';
+          else if (route.name === 'Quiz') iconName = focused ? 'school' : 'school-outline';
+          else if (route.name === 'Akun') iconName = focused ? 'person' : 'person-outline';
+          return <Ionicons name={iconName} size={24} color={color} />;
         },
       })}
     >
@@ -70,8 +82,13 @@ export default function AppNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#020617', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#facc15" />
+      <View style={{ 
+        flex: 1, 
+        backgroundColor: colors.background.primary,
+        justifyContent: 'center', 
+        alignItems: 'center',
+      }}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -118,7 +135,7 @@ export default function AppNavigator() {
           />
 
           <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} options={{ headerShown: true, title: 'Edit Profile' }} />
-          <Stack.Screen name="AssignmentDetail" component={AssignmentDetailScreen} options={{ headerShown: true, title: 'Detail Tugas' }} />
+          <Stack.Screen name="AssignmentDetail" component={AssignmentDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="QuizRoom" component={QuizRoomScreen} options={{ headerShown: true, title: 'Mengerjakan Quiz' }} />
           <Stack.Screen name="CreateAnnouncement" component={CreateAnnouncementScreen} options={{ headerShown: true, title: 'Buat Pengumuman' }} />
         </>

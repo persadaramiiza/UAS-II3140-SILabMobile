@@ -31,27 +31,15 @@ export async function getAssignment(assignmentId) {
 export async function getSubmissions(assignmentId, userId) {
   const { data, error } = await supabase
     .from('submissions')
-    .select(`
-      *,
-      grades (
-        id,
-        score,
-        feedback,
-        created_at
-      )
-    `)
+    .select('*')
     .eq('assignment_id', assignmentId)
-    .eq('user_id', userId);
+    .eq('student_id', userId);
 
   if (error) {
     throw error;
   }
   
-  // Transform data to make grade easier to access
-  return data.map(submission => ({
-    ...submission,
-    grade: submission.grades?.[0] || null
-  }));
+  return data || [];
 }
 
 export async function createOrUpdateSubmission(assignmentId, userId, submissionData) {
@@ -59,9 +47,9 @@ export async function createOrUpdateSubmission(assignmentId, userId, submissionD
       .from('submissions')
       .upsert({
         assignment_id: assignmentId,
-        user_id: userId,
+        student_id: userId,
         ...submissionData
-      }, { onConflict: ['assignment_id', 'user_id'] });
+      }, { onConflict: ['assignment_id', 'student_id'] });
 
     if (error) {
         throw error;

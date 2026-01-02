@@ -11,11 +11,18 @@ export function AuthProvider({ children }) {
 
   const fetchUserProfile = async (userId) => {
     try {
-      const { data, error } = await supabase
+      // Add timeout to prevent hanging
+      const profilePromise = supabase
         .from('users')
         .select('*')
         .eq('id', userId)
         .single();
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+      );
+      
+      const { data, error } = await Promise.race([profilePromise, timeoutPromise]);
       
       if (error) {
         // If user profile doesn't exist, create it
@@ -23,10 +30,16 @@ export function AuthProvider({ children }) {
           console.log('User profile not found, creating...');
           const { data: { user } } = await supabase.auth.getUser();
           
+          // Generate username from email
+          const emailUsername = user?.email?.split('@')[0] || 'user';
+          const timestamp = Date.now().toString().slice(-4);
+          const username = `${emailUsername}${timestamp}`;
+          
           const newProfile = {
             id: userId,
             email: user?.email,
-            name: user?.user_metadata?.full_name || 'User',
+            username: username,
+            name: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User',
             role: 'student'
           };
           
@@ -46,7 +59,30 @@ export function AuthProvider({ children }) {
           throw error;
         }
       } else {
-        setUserProfile(data);
+        // Profile exists, but check if username is null
+        if (data && !data.username) {
+          console.log('Updating profile with missing username...');
+          const { data: { user } } = await supabase.auth.getUser();
+          const emailUsername = user?.email?.split('@')[0] || 'user';
+          const timestamp = Date.now().toString().slice(-4);
+          const username = `${emailUsername}${timestamp}`;
+          
+          const { data: updatedProfile, error: updateError } = await supabase
+            .from('users')
+            .update({ username })
+            .eq('id', userId)
+            .select()
+            .single();
+          
+          if (updateError) {
+            console.error('Error updating username:', updateError);
+            setUserProfile(data);
+          } else {
+            setUserProfile(updatedProfile);
+          }
+        } else {
+          setUserProfile(data);
+        }
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -57,28 +93,47 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const fetchSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // Reduce timeout for faster initial load
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session fetch timeout')), 3000) // Reduced to 3s
+        );
+        
+        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
         setSession(session);
         setUser(session?.user ?? null);
         
+        // Set loading to false immediately to show UI
+        setLoading(false);
+        
+        // Fetch profile in background (non-blocking)
         if (session?.user) {
-          await fetchUserProfile(session.user.id);
+          fetchUserProfile(session.user.id).catch(err => {
+            console.error('Background profile fetch failed:', err);
+          });
         }
       } catch (error) {
         console.error('Error fetching session:', error);
-      } finally {
-        setLoading(false);
+        setLoading(false); // Always stop loading even on error
       }
     };
 
     fetchSession();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth event:', event);
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        await fetchUserProfile(session.user.id);
+        // On SIGNED_IN event, ensure profile exists
+        if (event === 'SIGNED_IN') {
+          await fetchUserProfile(session.user.id);
+        } else {
+          fetchUserProfile(session.user.id).catch(err => {
+            console.error('Background profile fetch failed:', err);
+          });
+        }
       } else {
         setUserProfile(null);
       }

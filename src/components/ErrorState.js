@@ -1,6 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Button } from './';
+import { colors, spacing, typography } from '../theme';
 
 export default function ErrorState({ 
   message = 'Terjadi kesalahan', 
@@ -9,14 +11,17 @@ export default function ErrorState({
 }) {
   return (
     <View style={styles.container}>
-      <Ionicons name="alert-circle-outline" size={64} color="#ef4444" />
+      <Ionicons name="alert-circle-outline" size={64} color={colors.status.error} />
       <Text style={styles.message}>{message}</Text>
       <Text style={styles.description}>{description}</Text>
       {onRetry && (
-        <TouchableOpacity style={styles.button} onPress={onRetry}>
-          <Ionicons name="refresh" size={20} color="#000" style={{ marginRight: 8 }} />
-          <Text style={styles.buttonText}>Coba Lagi</Text>
-        </TouchableOpacity>
+        <Button
+          title="Coba Lagi"
+          onPress={onRetry}
+          variant="primary"
+          icon="refresh"
+          style={{ marginTop: spacing.lg }}
+        />
       )}
     </View>
   );
@@ -27,33 +32,19 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: spacing.xl,
   },
   message: {
-    color: '#ef4444',
-    fontSize: 18,
-    fontWeight: '600',
+    ...typography.heading3,
+    color: colors.status.error,
     textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: spacing.lg,
+    marginBottom: spacing.xs,
   },
   description: {
-    color: '#9ca3af',
-    fontSize: 14,
+    ...typography.body,
+    color: colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 20,
-  },
-  button: {
-    backgroundColor: '#facc15',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#000',
-    fontWeight: 'bold',
-    fontSize: 16,
+    marginBottom: spacing.md,
   },
 });
