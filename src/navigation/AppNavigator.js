@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
+import { isAssistant, canManageContent } from '../utils/helpers';
 
 // Screens
 import LoginScreen from '../screens/Auth/LoginScreen';
@@ -26,6 +27,15 @@ import EnterpriseArchitectureScreen from '../screens/Modules/EnterpriseArchitect
 import InteractionDesignScreen from '../screens/Modules/InteractionDesignScreen';
 import ERDBuilderScreen from '../screens/Modules/ERDBuilderScreen';
 
+// Assistant Screens
+import AssistantHomeScreen from '../screens/Assistant/AssistantHomeScreen';
+import AssignmentManagementScreen from '../screens/Assistant/AssignmentManagementScreen';
+import GradeSubmissionsScreen from '../screens/Assistant/GradeSubmissionsScreen';
+import CreateAssignmentScreen from '../screens/Assistant/CreateAssignmentScreen';
+import EditAssignmentScreen from '../screens/Assistant/EditAssignmentScreen';
+import AnnouncementManagementScreen from '../screens/Assistant/AnnouncementManagementScreen';
+import EditAnnouncementScreen from '../screens/Assistant/EditAnnouncementScreen';
+
 import { useAuth } from '../contexts/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
 
@@ -38,7 +48,8 @@ const commonHeaderStyle = {
   contentStyle: { backgroundColor: colors.background.primary },
 };
 
-function HomeTabs() {
+// Student Home Tabs
+function StudentHomeTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -77,6 +88,58 @@ function HomeTabs() {
   );
 }
 
+// Assistant Home Tabs
+function AssistantHomeTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        ...commonHeaderStyle,
+        tabBarStyle: { 
+          backgroundColor: colors.background.primary,
+          borderTopColor: colors.border.light,
+          borderTopWidth: 1,
+          paddingBottom: 5,
+          paddingTop: 5,
+          height: 60,
+        },
+        tabBarActiveTintColor: '#0F2A71',
+        tabBarInactiveTintColor: colors.text.secondary,
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
+        tabBarIcon: ({ color, size, focused }) => {
+          let iconName;
+          if (route.name === 'Dashboard') iconName = focused ? 'home' : 'home-outline';
+          else if (route.name === 'Tugas') iconName = focused ? 'document-text' : 'document-text-outline';
+          else if (route.name === 'Pengumuman') iconName = focused ? 'notifications' : 'notifications-outline';
+          else if (route.name === 'Quiz') iconName = focused ? 'school' : 'school-outline';
+          else if (route.name === 'Akun') iconName = focused ? 'person' : 'person-outline';
+          return <Ionicons name={iconName} size={24} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen name="Dashboard" component={AssistantHomeScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Tugas" component={AssignmentManagementScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Pengumuman" component={AnnouncementManagementScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Quiz" component={QuizListScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Akun" component={ProfileScreen} />
+    </Tab.Navigator>
+  );
+}
+
+// Wrapper component to handle role-based tabs
+function MainTabsWrapper() {
+  const { userProfile } = useAuth();
+  
+  // Check if user is assistant or instructor
+  if (canManageContent(userProfile)) {
+    return <AssistantHomeTabs />;
+  }
+  
+  return <StudentHomeTabs />;
+}
+
 export default function AppNavigator() {
   const { user, loading } = useAuth();
 
@@ -102,7 +165,7 @@ export default function AppNavigator() {
         </>
       ) : (
         <>
-          <Stack.Screen name="MainTabs" component={HomeTabs} />
+          <Stack.Screen name="MainTabs" component={MainTabsWrapper} />
           <Stack.Screen 
             name="ModuleContent" 
             component={ModuleContentScreen} 
@@ -131,6 +194,33 @@ export default function AppNavigator() {
           <Stack.Screen 
             name="ERDBuilder" 
             component={ERDBuilderScreen} 
+            options={{ headerShown: false }} 
+          />
+
+          {/* Assistant/Instructor Screens */}
+          <Stack.Screen 
+            name="AssignmentManagement" 
+            component={AssignmentManagementScreen} 
+            options={{ headerShown: false }} 
+          />
+          <Stack.Screen 
+            name="GradeSubmissions" 
+            component={GradeSubmissionsScreen} 
+            options={{ headerShown: false }} 
+          />
+          <Stack.Screen 
+            name="CreateAssignment" 
+            component={CreateAssignmentScreen} 
+            options={{ headerShown: false }} 
+          />
+          <Stack.Screen 
+            name="EditAssignment" 
+            component={EditAssignmentScreen} 
+            options={{ headerShown: false }} 
+          />
+          <Stack.Screen 
+            name="EditAnnouncement" 
+            component={EditAnnouncementScreen} 
             options={{ headerShown: false }} 
           />
 

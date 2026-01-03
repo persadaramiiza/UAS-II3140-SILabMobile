@@ -72,6 +72,7 @@ export const MODULE_FOCUS = [
 // User Roles
 export const USER_ROLES = {
   STUDENT: 'student',
+  ASSISTANT: 'assistant',
   INSTRUCTOR: 'instructor',
   ADMIN: 'admin',
 };

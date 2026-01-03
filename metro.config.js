@@ -4,6 +4,7 @@ const path = require('path');
 const config = getDefaultConfig(__dirname);
 
 // Exclude the frontend directory from Metro's watch list and resolver
+// Force cache invalidation
 config.resolver.blockList = [
   /frontend\/.*/,
 ];

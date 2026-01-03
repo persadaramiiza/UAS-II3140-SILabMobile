@@ -90,6 +90,16 @@ export const isAdmin = (userProfile) => {
   return userProfile?.role === 'admin';
 };
 
+export const isAssistant = (userProfile) => {
+  return userProfile?.role === 'assistant' || userProfile?.role === 'instructor';
+};
+
 export const isStudent = (userProfile) => {
   return userProfile?.role === 'student' || !userProfile?.role;
+};
+
+// Check if user can manage content (assistant, instructor, or admin)
+export const canManageContent = (userProfile) => {
+  const role = userProfile?.role;
+  return role === 'assistant' || role === 'instructor' || role === 'admin';
 };

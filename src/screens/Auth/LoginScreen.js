@@ -56,7 +56,31 @@ export default function LoginScreen({ navigation }) {
         setLoading(true);
         const { error } = await supabase.auth.signInWithPassword(account);
         if (error) {
-          Alert.alert('Demo Login Failed', error.message);
+          // If login fails with invalid credentials, try to auto-register the demo account
+          if (error.message.includes("Invalid login credentials")) {
+            console.log(`Demo user ${role} not found, attempting to register...`);
+            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+              email: account.email,
+              password: account.password,
+              options: {
+                data: {
+                  full_name: role.charAt(0).toUpperCase() + role.slice(1) + ' Demo',
+                  role: role
+                }
+              }
+            });
+
+            if (signUpError) {
+              Alert.alert('Demo Login Failed', `Could not register demo account: ${signUpError.message}`);
+            } else if (signUpData.session) {
+              // Registration successful and session created (auto-confirm enabled)
+              // AuthContext will handle the state change
+            } else if (signUpData.user && !signUpData.session) {
+              Alert.alert('Demo Account Created', 'Account created but requires email confirmation.');
+            }
+          } else {
+            Alert.alert('Demo Login Failed', error.message);
+          }
         }
       } catch (err) {
         Alert.alert('Error', err.message || 'An unexpected error occurred.');

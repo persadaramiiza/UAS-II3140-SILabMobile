@@ -9,6 +9,10 @@ import {
   Alert,
   PanResponder,
   Animated,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -54,6 +58,9 @@ export default function InteractionDesignScreen() {
   const [elements, setElements] = useState([]);
   const [selectedElement, setSelectedElement] = useState(null);
   const [scrollEnabled, setScrollEnabled] = useState(true);
+  const [showTextModal, setShowTextModal] = useState(false);
+  const [editingElementId, setEditingElementId] = useState(null);
+  const [textInput, setTextInput] = useState('');
 
   useEffect(() => {
     loadDiagram();
@@ -103,7 +110,7 @@ export default function InteractionDesignScreen() {
   };
 
   const handleCanvasTap = (event) => {
-    if (selectedTool === 'select') {
+    if (selectedTool === 'select' || selectedTool === 'text') {
       setSelectedElement(null);
       return;
     }
@@ -117,7 +124,7 @@ export default function InteractionDesignScreen() {
       y: Math.max(0, locationY - 25),
       width: selectedTool === 'circle' ? 60 : selectedTool === 'diamond' ? 80 : selectedTool === 'line' ? 100 : 80,
       height: selectedTool === 'circle' ? 60 : selectedTool === 'diamond' ? 80 : selectedTool === 'line' ? 4 : 50,
-      label: selectedTool === 'text' ? 'Text' : '',
+      label: '',
     };
 
     saveDiagram([...elements, newElement]);
@@ -126,7 +133,34 @@ export default function InteractionDesignScreen() {
   const handleElementSelect = (element) => {
     if (selectedTool === 'select') {
       setSelectedElement(element);
+    } else if (selectedTool === 'text') {
+      // Open text input modal for this element
+      setEditingElementId(element.id);
+      setTextInput(element.label || '');
+      setShowTextModal(true);
     }
+  };
+
+  const handleTextSave = () => {
+    if (editingElementId) {
+      const updated = elements.map((el) =>
+        el.id === editingElementId ? { ...el, label: textInput } : el
+      );
+      saveDiagram(updated);
+      // Update selected element if it's the one being edited
+      if (selectedElement?.id === editingElementId) {
+        setSelectedElement({ ...selectedElement, label: textInput });
+      }
+    }
+    setShowTextModal(false);
+    setEditingElementId(null);
+    setTextInput('');
+  };
+
+  const handleTextCancel = () => {
+    setShowTextModal(false);
+    setEditingElementId(null);
+    setTextInput('');
   };
 
   const deleteSelectedElement = () => {
@@ -229,6 +263,8 @@ export default function InteractionDesignScreen() {
           <Text style={styles.toolHint}>
             {selectedTool === 'select' 
               ? 'Drag to move, long press to delete' 
+              : selectedTool === 'text'
+              ? 'Tap on element to add/edit label'
               : `Tap canvas to add ${TOOLS.find(t => t.id === selectedTool)?.label}`}
           </Text>
         </View>
@@ -288,9 +324,54 @@ export default function InteractionDesignScreen() {
             <Text style={styles.inspectorInfo}>
               Size: {selectedElement.width} × {selectedElement.height}
             </Text>
+            {selectedElement.label && (
+              <Text style={styles.inspectorInfo}>
+                Label: {selectedElement.label}
+              </Text>
+            )}
           </View>
         )}
       </ScrollView>
+
+      {/* Text Input Modal */}
+      <Modal
+        visible={showTextModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleTextCancel}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.textModalContent}>
+            <View style={styles.textModalHeader}>
+              <Text style={styles.textModalTitle}>Edit Label</Text>
+              <TouchableOpacity onPress={handleTextCancel}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={styles.textModalInput}
+              placeholder="Enter label text..."
+              placeholderTextColor="#9CA3AF"
+              value={textInput}
+              onChangeText={setTextInput}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleTextSave}
+            />
+            <View style={styles.textModalButtons}>
+              <TouchableOpacity style={styles.textModalCancelBtn} onPress={handleTextCancel}>
+                <Text style={styles.textModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.textModalSaveBtn} onPress={handleTextSave}>
+                <Text style={styles.textModalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -613,5 +694,65 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginTop: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  textModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+  },
+  textModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  textModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  textModalInput: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 14,
+    fontSize: 16,
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  textModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  textModalCancelBtn: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  textModalCancelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  textModalSaveBtn: {
+    flex: 1,
+    backgroundColor: '#0F2A71',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  textModalSaveText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

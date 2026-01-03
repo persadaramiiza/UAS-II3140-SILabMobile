@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
             email: user?.email,
             username: username,
             name: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User',
-            role: 'student'
+            role: user?.user_metadata?.role || 'student'
           };
           
           const { data: createdProfile, error: createError } = await supabase

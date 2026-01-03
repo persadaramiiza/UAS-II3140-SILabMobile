@@ -56,3 +56,61 @@ export async function createOrUpdateSubmission(assignmentId, userId, submissionD
     }
     return data;
 }
+
+export async function createAssignment(assignmentData) {
+  const { data, error } = await supabase
+    .from('assignments')
+    .insert([assignmentData])
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return data;
+}
+
+export async function updateAssignment(assignmentId, assignmentData) {
+  const { data, error } = await supabase
+    .from('assignments')
+    .update(assignmentData)
+    .eq('id', assignmentId)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return data;
+}
+
+export async function deleteAssignment(assignmentId) {
+  const { error } = await supabase
+    .from('assignments')
+    .delete()
+    .eq('id', assignmentId);
+
+  if (error) {
+    throw error;
+  }
+  return true;
+}
+
+export async function getAllSubmissions(assignmentId) {
+  const { data, error } = await supabase
+    .from('submissions')
+    .select(`
+      *,
+      profiles:student_id (
+        name,
+        nim
+      )
+    `)
+    .eq('assignment_id', assignmentId)
+    .order('submitted_at', { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+  return data || [];
+}
