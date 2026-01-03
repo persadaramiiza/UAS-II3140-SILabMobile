@@ -16,14 +16,19 @@ export async function fetchAssignments(filters = {}) {
 }
 
 export async function getAssignment(assignmentId) {
+  if (!assignmentId) throw new Error('Assignment ID is required');
+  
   const { data, error } = await supabase
     .from('assignments')
     .select('*')
     .eq('id', assignmentId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw error;
+  }
+  if (!data) {
+    throw new Error('Assignment not found');
   }
   return data;
 }

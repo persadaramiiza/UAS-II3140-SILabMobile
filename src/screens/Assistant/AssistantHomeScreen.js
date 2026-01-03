@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  ImageBackground,
   Dimensions,
   RefreshControl,
   Alert,
@@ -230,14 +231,13 @@ export default function AssistantHomeScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        } 
       >
         {/* Header */}
-        <LinearGradient
-          colors={['#0F2A71', '#1E3A8A', '#2563EB']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+        <ImageBackground
+          source={require('../../../assets/header-bg2.png')}
           style={styles.header}
+          imageStyle={styles.headerBackground}
         >
           <View style={styles.headerContent}>
             <View style={styles.headerTextContainer}>
@@ -245,20 +245,29 @@ export default function AssistantHomeScreen({ navigation }) {
               <Text style={styles.roleName}>Assistant</Text>
               <Text style={styles.roleSubtitle}>Manage your lab activities</Text>
             </View>
-            <Image
-              source={require('../../../assets/logo.png')}
-              style={styles.headerImage}
-              resizeMode="contain"
-            />
           </View>
           
           {/* Notification badge */}
-          <TouchableOpacity style={styles.notificationBadge}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>3</Text>
-            </View>
+          <TouchableOpacity 
+            style={styles.notificationBadge}
+            onPress={() => {
+              if (stats.toGrade > 0) {
+                navigation.navigate('AssignmentManagement');
+              } else {
+                Alert.alert('Notifications', 'No new notifications');
+              }
+            }}
+          >
+            <Ionicons name="notifications" size={28} color="#FFFFFF" />
+            {stats.toGrade > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {stats.toGrade > 99 ? '99+' : stats.toGrade}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
-        </LinearGradient>
+        </ImageBackground>
 
         {/* Stats Grid */}
         <View style={styles.statsContainer}>
@@ -338,12 +347,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAFA',
   },
   header: {
-    paddingTop: 60,
+    paddingTop: 50,
     paddingBottom: 30,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
     position: 'relative',
+    height: 190,
+    justifyContent: 'center',
+  },
+  headerBackground: {
+    resizeMode: 'cover',
   },
   headerContent: {
     flexDirection: 'row',
@@ -369,31 +381,38 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.7)',
   },
   headerImage: {
-    width: 120,
-    height: 100,
+    width: 393.32,
+    height: 162.97,
     marginRight: -10,
   },
   notificationBadge: {
     position: 'absolute',
-    top: 60,
+    top: 50,
     right: 20,
+    zIndex: 10,
   },
   badge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
     backgroundColor: '#FBBC04',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 4,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#0F2A71',
   },
   badgeText: {
     color: '#0F2A71',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '700',
   },
   statsContainer: {
     padding: 16,
-    marginTop: -20,
+    marginTop: -10,
   },
   statsRow: {
     flexDirection: 'row',

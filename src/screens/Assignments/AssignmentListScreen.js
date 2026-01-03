@@ -130,13 +130,13 @@ export default function AssignmentListScreen({ route, navigation }) {
     return (
       <TouchableOpacity
         style={styles.card}
-        onPress={() => navigation.navigate('AssignmentDetail', { assignment: item })}
+        onPress={() => navigation.navigate('AssignmentDetail', { assignmentId: item.id })}
       >
         <View style={styles.cardContent}>
           <View style={styles.leftContent}>
             {/* Focus Badge */}
             <View style={styles.focusBadge}>
-              <Text style={styles.focusText}>{item.focus}</Text>
+              <Text style={styles.focusText}>{item.focus || 'General'}</Text>
             </View>
 
             {/* Title */}

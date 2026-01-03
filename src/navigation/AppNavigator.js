@@ -20,6 +20,7 @@ import AssignmentDetailScreen from '../screens/Assignments/AssignmentDetailScree
 
 import QuizListScreen from '../screens/Quiz/QuizListScreen';
 import QuizRoomScreen from '../screens/Quiz/QuizRoomScreen';
+import QuizReviewScreen from '../screens/Quiz/QuizReviewScreen';
 
 // Interactive Module Screens
 import RequirementsEngineeringScreen from '../screens/Modules/RequirementsEngineeringScreen';
@@ -35,6 +36,10 @@ import CreateAssignmentScreen from '../screens/Assistant/CreateAssignmentScreen'
 import EditAssignmentScreen from '../screens/Assistant/EditAssignmentScreen';
 import AnnouncementManagementScreen from '../screens/Assistant/AnnouncementManagementScreen';
 import EditAnnouncementScreen from '../screens/Assistant/EditAnnouncementScreen';
+import QuizManagementScreen from '../screens/Assistant/QuizManagementScreen';
+import CreateQuizScreen from '../screens/Assistant/CreateQuizScreen';
+import QuizMonitorScreen from '../screens/Assistant/QuizMonitorScreen';
+import QuizReportScreen from '../screens/Assistant/QuizReportScreen';
 
 import { useAuth } from '../contexts/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
@@ -122,7 +127,7 @@ function AssistantHomeTabs() {
       <Tab.Screen name="Dashboard" component={AssistantHomeScreen} options={{ headerShown: false }} />
       <Tab.Screen name="Tugas" component={AssignmentManagementScreen} options={{ headerShown: false }} />
       <Tab.Screen name="Pengumuman" component={AnnouncementManagementScreen} options={{ headerShown: false }} />
-      <Tab.Screen name="Quiz" component={QuizListScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Quiz" component={QuizManagementScreen} options={{ headerShown: false }} />
       <Tab.Screen name="Akun" component={ProfileScreen} />
     </Tab.Navigator>
   );
@@ -223,10 +228,26 @@ export default function AppNavigator() {
             component={EditAnnouncementScreen} 
             options={{ headerShown: false }} 
           />
+          <Stack.Screen 
+            name="CreateQuiz" 
+            component={CreateQuizScreen} 
+            options={{ headerShown: false }} 
+          />
+          <Stack.Screen 
+            name="QuizMonitor" 
+            component={QuizMonitorScreen} 
+            options={{ headerShown: false }} 
+          />
+          <Stack.Screen 
+            name="QuizReport" 
+            component={QuizReportScreen} 
+            options={{ headerShown: false }} 
+          />
 
           <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} options={{ headerShown: true, title: 'Edit Profile' }} />
           <Stack.Screen name="AssignmentDetail" component={AssignmentDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="QuizRoom" component={QuizRoomScreen} options={{ headerShown: true, title: 'Mengerjakan Quiz' }} />
+          <Stack.Screen name="QuizReview" component={QuizReviewScreen} options={{ headerShown: true, title: 'Review Quiz' }} />
           <Stack.Screen name="CreateAnnouncement" component={CreateAnnouncementScreen} options={{ headerShown: true, title: 'Buat Pengumuman' }} />
         </>
       )}

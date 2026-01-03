@@ -24,6 +24,15 @@ export const formatDateTime = (dateString) => {
   });
 };
 
+export const formatTime = (dateString) => {
+  if (!dateString) return '-';
+  
+  return new Date(dateString).toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
 export const formatRelativeTime = (dateString) => {
   if (!dateString) return '-';
   

@@ -72,11 +72,10 @@ export default function AssignmentDetailScreen({ route, navigation }) {
   const status = getAssignmentStatus();
   const dueDate = detail?.due_date || detail?.dueDate;
 
-  // Mock resources for demonstration (replace with actual data)
-  const resources = [
-    { id: 1, name: 'Assignment Brief.pdf', size: 245 * 1024 },
-    { id: 2, name: 'UML Reference Guide.pdf', size: 1.2 * 1024 * 1024 },
-  ];
+  // Parse resources if available (assuming JSON string or array)
+  const resources = Array.isArray(detail?.resources) 
+    ? detail.resources 
+    : (typeof detail?.resources === 'string' ? JSON.parse(detail.resources) : []);
 
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
@@ -135,6 +134,7 @@ export default function AssignmentDetailScreen({ route, navigation }) {
           )}
         </TouchableOpacity>
 
+        {resources.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Resources</Text>
           {resources.map((resource) => (
@@ -148,6 +148,7 @@ export default function AssignmentDetailScreen({ route, navigation }) {
             </TouchableOpacity>
           ))}
         </View>
+        )}
       </ScrollView>
     </View>
   );

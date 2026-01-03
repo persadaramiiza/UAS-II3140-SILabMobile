@@ -6,23 +6,26 @@ import {
   TouchableOpacity, 
   StyleSheet, 
   RefreshControl, 
-  Dimensions
+  Dimensions,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { listQuizTopics } from '../../services/quizApi';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { width } = Dimensions.get('window');
 
-export default function QuizListScreen({ navigation }) {
+export default function QuizListScreen({ navigation, route }) {
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('Active');
+  const { user } = useAuth();
 
   const loadQuizzes = async () => {
     try {
       setLoading(true);
-      const data = await listQuizTopics();
+      const data = await listQuizTopics({ userId: user?.id });
       setTopics(data || []);
     } catch (err) {
       console.error('Failed to load quizzes:', err);
@@ -46,30 +49,57 @@ export default function QuizListScreen({ navigation }) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [route.params?.refresh]); // Reload when refresh param changes
 
   const filters = ['Upcoming', 'Active', 'Completed'];
 
-  // Mock enhanced data structure to match frontend
-  const enhancedTopics = topics.map((topic, index) => ({
-    ...topic,
-    status: index % 3 === 0 ? 'Active' : index % 3 === 1 ? 'Upcoming' : 'Completed',
-    course: topic.title.split(' ')[0] || 'General',
-    timeLimit: '30 minutes',
-    attempts: 2,
-    availableUntil: 'Today, 11:59 PM',
-    availableFrom: 'Tomorrow, 9:00 AM',
-    score: index % 3 === 2 ? 85 : null,
-    completedAt: index % 3 === 2 ? 'Dec 20, 2025' : null,
-    accentColor: index % 3 === 0 ? '#0F2A71' : index % 3 === 1 ? '#3B82F6' : '#10B981',
-  }));
+  // Process topics with real data
+  const enhancedTopics = topics.map((topic, index) => {
+    const now = new Date();
+    const startTime = topic.start_time ? new Date(topic.start_time) : new Date(topic.created_at);
+    const endTime = topic.end_time ? new Date(topic.end_time) : new Date(startTime.getTime() + (topic.duration || 30) * 60000);
+    
+    let status = 'Upcoming';
+    if (topic.isSubmitted) status = 'Completed';
+    else if (now > endTime) status = 'Completed';
+    else if (now >= startTime) status = 'Active';
+
+    return {
+      ...topic,
+      status,
+      course: topic.course || topic.title.split(' - ')[0] || 'General',
+      timeLimit: `${topic.duration || 30} minutes`,
+      attempts: 1, // Default
+      availableUntil: endTime.toLocaleDateString(),
+      availableFrom: startTime.toLocaleDateString(),
+      accentColor: status === 'Active' ? '#0F2A71' : status === 'Upcoming' ? '#3B82F6' : '#10B981',
+    };
+  });
 
   const filteredTopics = enhancedTopics.filter(topic => topic.status === activeFilter);
+
+  const handleQuizPress = (item) => {
+    if (item.status === 'Completed') {
+      if (item.isSubmitted) {
+        navigation.navigate('QuizReview', { topicId: item.id, title: item.title });
+      } else {
+        Alert.alert('Expired', 'This quiz is no longer available.');
+      }
+      return;
+    }
+    
+    if (item.status === 'Upcoming') {
+      Alert.alert('Not Available', `This quiz will be available on ${item.availableFrom}`);
+      return;
+    }
+
+    navigation.navigate('QuizRoom', { topicId: item.id, title: item.title });
+  };
 
   const renderQuizCard = ({ item }) => (
     <TouchableOpacity 
       style={styles.card}
-      onPress={() => navigation.navigate('QuizRoom', { topicId: item.id, title: item.title })}
+      onPress={() => handleQuizPress(item)}
       activeOpacity={0.7}
     >
       {/* Left Accent Bar */}
@@ -107,11 +137,10 @@ export default function QuizListScreen({ navigation }) {
           <Text style={styles.upcomingText}>Available from {item.availableFrom}</Text>
         )}
 
-        {item.status === 'Completed' && item.score && (
+        {item.status === 'Completed' && item.isSubmitted && (
           <View style={styles.scoreContainer}>
             <Ionicons name="checkmark-circle" size={18} color="#10B981" />
             <Text style={styles.scoreText}>Score: {item.score}%</Text>
-            <Text style={styles.completedText}>{item.completedAt}</Text>
           </View>
         )}
 
@@ -119,7 +148,7 @@ export default function QuizListScreen({ navigation }) {
         {item.status === 'Active' && (
           <TouchableOpacity 
             style={[styles.actionButton, { backgroundColor: item.accentColor }]}
-            onPress={() => navigation.navigate('QuizRoom', { topicId: item.id, title: item.title })}
+            onPress={() => handleQuizPress(item)}
           >
             <Ionicons name="play" size={18} color="#FFFFFF" />
             <Text style={styles.actionButtonText}>Start Quiz</Text>
@@ -133,7 +162,10 @@ export default function QuizListScreen({ navigation }) {
         )}
 
         {item.status === 'Completed' && (
-          <TouchableOpacity style={styles.reviewButton}>
+          <TouchableOpacity 
+            style={styles.reviewButton}
+            onPress={() => navigation.navigate('QuizReview', { topicId: item.id, title: item.title })}
+          >
             <Text style={styles.reviewButtonText}>Review Answers</Text>
           </TouchableOpacity>
         )}

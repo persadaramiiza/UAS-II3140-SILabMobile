@@ -9,7 +9,7 @@ export function AuthProvider({ children }) {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserProfile = async (userId) => {
+  const fetchUserProfile = async (userId, retries = 2) => {
     try {
       // Add timeout to prevent hanging
       const profilePromise = supabase
@@ -19,7 +19,7 @@ export function AuthProvider({ children }) {
         .single();
       
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 15000)
       );
       
       const { data, error } = await Promise.race([profilePromise, timeoutPromise]);
@@ -85,6 +85,11 @@ export function AuthProvider({ children }) {
         }
       }
     } catch (error) {
+      if (retries > 0) {
+        console.log(`Retrying profile fetch... (${retries} attempts left)`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return fetchUserProfile(userId, retries - 1);
+      }
       console.error('Error fetching user profile:', error);
       setUserProfile(null);
     }

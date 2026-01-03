@@ -7,10 +7,12 @@ import {
   TouchableOpacity, 
   Image,
   Dimensions,
-  ActivityIndicator
+  ActivityIndicator,
+  ImageBackground
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { fetchAnnouncements } from '../../services/announcementsApi';
+import { fetchAssignments } from '../../services/assignmentsApi';
+import { listQuizTopics } from '../../services/quizApi';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDateTime } from '../../utils/helpers';
@@ -20,17 +22,72 @@ const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }) {
   const [announcements, setAnnouncements] = useState([]);
-  const [loading, setLoading] = useState(false); // Changed to false
+  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState({ dueSoon: 0, quizToday: 0 });
+  const [nextDeadline, setNextDeadline] = useState(null);
   const { userProfile } = useAuth();
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const data = await fetchAnnouncements();
-      setAnnouncements(data.slice(0, 3)); // Only show 3 latest
+      
+      const [announcementsData, assignmentsData, quizzesData] = await Promise.all([
+        fetchAnnouncements(),
+        fetchAssignments(),
+        listQuizTopics()
+      ]);
+
+      setAnnouncements(announcementsData.slice(0, 3));
+
+      // Process Assignments
+      const now = new Date();
+      const threeDaysFromNow = new Date();
+      threeDaysFromNow.setDate(now.getDate() + 3);
+
+      // Filter for future assignments
+      const activeAssignments = (assignmentsData || []).filter(a => {
+        if (!a.due_date) return false;
+        const dueDate = new Date(a.due_date);
+        return dueDate > now;
+      });
+
+      // Sort by due date (nearest first)
+      activeAssignments.sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+
+      // Set Next Deadline
+      if (activeAssignments.length > 0) {
+        const next = activeAssignments[0];
+        setNextDeadline({
+          id: next.id,
+          course: next.focus || 'General',
+          title: next.title,
+          dueDate: formatDateTime(next.due_date),
+          status: 'Active'
+        });
+      } else {
+        setNextDeadline(null);
+      }
+
+      // Count Due Soon
+      const dueSoonCount = activeAssignments.filter(a => {
+        const d = new Date(a.due_date);
+        return d <= threeDaysFromNow;
+      }).length;
+
+      // Count Quiz Today
+      const todayStr = now.toISOString().split('T')[0];
+      const quizTodayCount = (quizzesData || []).filter(q => {
+        const dateToCheck = q.start_time || q.created_at;
+        return dateToCheck && dateToCheck.startsWith(todayStr);
+      }).length;
+
+      setStats({
+        dueSoon: dueSoonCount,
+        quizToday: quizTodayCount
+      });
+
     } catch (error) {
-      console.error('Failed to load announcements:', error);
-      // Continue with empty data instead of blocking
+      console.error('Failed to load home data:', error);
       setAnnouncements([]);
     } finally {
       setLoading(false);
@@ -53,19 +110,6 @@ export default function HomeScreen({ navigation }) {
     };
   }, []);
 
-  // Mock data for stats
-  const stats = {
-    dueSoon: 3,
-    quizToday: 1,
-  };
-
-  const nextDeadline = {
-    course: 'System Analysis & Design',
-    title: 'UML Class Diagram Assignment',
-    dueDate: 'Tomorrow, 11:59 PM',
-    status: 'Active',
-  };
-
   const progress = {
     tasksCompleted: 8,
     totalTasks: 12,
@@ -79,11 +123,10 @@ export default function HomeScreen({ navigation }) {
     >
       {/* Styled Header with Background */}
       <View style={styles.headerContainer}>
-        <LinearGradient
-          colors={['#1E3A8A', '#3B5998', '#5B7AB8']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+        <ImageBackground
+          source={require('../../../assets/home-header.png')}
           style={styles.headerBackground}
+          resizeMode="cover"
         >
           {/* Logo */}
           <Image 
@@ -102,7 +145,7 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.headerSubtitleBold}>explore</Text> today?
             </Text>
           </View>
-        </LinearGradient>
+        </ImageBackground>
       </View>
 
       <View style={styles.content}>
@@ -139,34 +182,38 @@ export default function HomeScreen({ navigation }) {
         {/* Next Deadline */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Next Deadline</Text>
-          <View style={styles.deadlineCard}>
-            {/* Course Chip */}
-            <View style={styles.courseChip}>
-              <Text style={styles.courseChipText}>{nextDeadline.course}</Text>
-            </View>
-
-            {/* Title */}
-            <Text style={styles.deadlineTitle}>{nextDeadline.title}</Text>
-
-            {/* Due Date */}
-            <View style={styles.dueDateRow}>
-              <Ionicons name="time-outline" size={16} color="#6B6B6B" />
-              <Text style={styles.dueDateText}>{nextDeadline.dueDate}</Text>
-            </View>
-
-            {/* Status Badge */}
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>{nextDeadline.status}</Text>
-            </View>
-
-            {/* CTA Button */}
-            <TouchableOpacity
-              style={styles.ctaButton}
-              onPress={() => navigation.navigate('Tugas')}
+          {nextDeadline ? (
+            <TouchableOpacity 
+              style={styles.deadlineCard}
+              onPress={() => navigation.navigate('AssignmentDetail', { assignmentId: nextDeadline.id })}
+              activeOpacity={0.9}
             >
-              <Text style={styles.ctaButtonText}>Open</Text>
+              {/* Course Chip */}
+              <View style={styles.courseChip}>
+                <Text style={styles.courseChipText}>{nextDeadline.course}</Text>
+              </View>
+
+              {/* Title */}
+              <Text style={styles.deadlineTitle}>{nextDeadline.title}</Text>
+
+              {/* Due Date */}
+              <View style={styles.dueDateRow}>
+                <Ionicons name="time-outline" size={16} color="#6B6B6B" />
+                <Text style={styles.dueDateText}>{nextDeadline.dueDate}</Text>
+              </View>
+
+              {/* Status Badge */}
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusText}>{nextDeadline.status}</Text>
+              </View>
             </TouchableOpacity>
-          </View>
+          ) : (
+            <View style={[styles.deadlineCard, { alignItems: 'center', justifyContent: 'center', paddingVertical: 24 }]}>
+              <Ionicons name="checkmark-circle-outline" size={48} color="#10B981" />
+              <Text style={[styles.deadlineTitle, { marginTop: 12, textAlign: 'center' }]}>All caught up!</Text>
+              <Text style={[styles.dueDateText, { textAlign: 'center' }]}>No upcoming deadlines.</Text>
+            </View>
+          )}
         </View>
 
         {/* Announcements */}
@@ -317,8 +364,8 @@ const styles = StyleSheet.create({
   illustration: {
     position: 'absolute',
     width: width - 48,
-    height: '100%',
-    top: -50,
+    height: '140%',
+    top: -60,
   },
   statsContainer: {
     position: 'absolute',

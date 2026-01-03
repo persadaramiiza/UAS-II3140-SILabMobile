@@ -1,6 +1,6 @@
 import { Screen } from '../App';
 import { Users, FileText, ClipboardList, TrendingUp, Bell } from 'lucide-react';
-import imgHeader from "figma:asset/3e850e92b43284db0fac35330dbde26d5a67894a.png";
+import imgHeader from "asset/3e850e92b43284db0fac35330dbde26d5a67894a.png";
 
 interface AssistantHomeProps {
   navigate: (screen: Screen) => void;
