@@ -12,232 +12,173 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
 
-// Floating crystal/diamond shape component
-const FloatingCrystal = ({ delay, startX, startY, size, rotation, duration }) => {
+// Simple floating crystal component
+const FloatingCrystal = ({ delay, x, y, size }) => {
   const translateY = useRef(new Animated.Value(0)).current;
-  const translateX = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
-  const rotate = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const animateCrystal = () => {
-      Animated.parallel([
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(opacity, {
-            toValue: 0.7,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(translateY, {
-              toValue: -30,
-              duration: duration,
-              easing: Easing.inOut(Easing.sin),
-              useNativeDriver: true,
-            }),
-            Animated.timing(translateY, {
-              toValue: 30,
-              duration: duration,
-              easing: Easing.inOut(Easing.sin),
-              useNativeDriver: true,
-            }),
-          ])
-        ),
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(translateX, {
-              toValue: 15,
-              duration: duration * 1.3,
-              easing: Easing.inOut(Easing.sin),
-              useNativeDriver: true,
-            }),
-            Animated.timing(translateX, {
-              toValue: -15,
-              duration: duration * 1.3,
-              easing: Easing.inOut(Easing.sin),
-              useNativeDriver: true,
-            }),
-          ])
-        ),
-        Animated.loop(
-          Animated.timing(rotate, {
-            toValue: 1,
-            duration: duration * 2,
-            easing: Easing.linear,
-            useNativeDriver: true,
-          })
-        ),
-      ]).start();
-    };
+    // Fade in
+    Animated.sequence([
+      Animated.delay(delay),
+      Animated.timing(opacity, {
+        toValue: 0.6,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
-    animateCrystal();
+    // Float up and down
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(translateY, {
+          toValue: -20,
+          duration: 2000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: 20,
+          duration: 2000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
   }, []);
-
-  const rotateInterpolate = rotate.interpolate({
-    inputRange: [0, 1],
-    outputRange: [`${rotation}deg`, `${rotation + 360}deg`],
-  });
 
   return (
     <Animated.View
       style={[
         styles.crystal,
         {
-          left: startX,
-          top: startY,
+          left: x,
+          top: y,
           width: size,
           height: size,
           opacity,
-          transform: [
-            { translateX },
-            { translateY },
-            { rotate: rotateInterpolate },
-          ],
+          transform: [{ translateY }, { rotate: '45deg' }],
         },
       ]}
-    >
-      <LinearGradient
-        colors={['#F59E0B', '#FBBF24', '#F97316']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.crystalInner, { width: size, height: size }]}
-      />
-    </Animated.View>
+    />
   );
 };
 
 export default function SplashScreen({ onFinish }) {
   const [phase, setPhase] = useState(0);
-  
-  // Animation values
-  const fadeIn = useRef(new Animated.Value(0)).current;
-  const textFade = useRef(new Animated.Value(0)).current;
-  const doorScale = useRef(new Animated.Value(0)).current;
-  const doorOpen = useRef(new Animated.Value(0)).current;
-  const lightOpacity = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const finalFade = useRef(new Animated.Value(0)).current;
 
-  // Crystal data
+  // Animation values
+  const textOpacity = useRef(new Animated.Value(0)).current;
+  const doorOpacity = useRef(new Animated.Value(0)).current;
+  const doorWidth = useRef(new Animated.Value(160)).current;
+  const lightOpacity = useRef(new Animated.Value(0)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.5)).current;
+  const finalOpacity = useRef(new Animated.Value(0)).current;
+
+  // Crystal positions
   const crystals = [
-    { delay: 0, startX: width * 0.1, startY: height * 0.15, size: 40, rotation: 0, duration: 3000 },
-    { delay: 200, startX: width * 0.8, startY: height * 0.2, size: 25, rotation: 45, duration: 2500 },
-    { delay: 400, startX: width * 0.15, startY: height * 0.5, size: 35, rotation: 30, duration: 2800 },
-    { delay: 600, startX: width * 0.75, startY: height * 0.6, size: 30, rotation: 60, duration: 3200 },
-    { delay: 300, startX: width * 0.05, startY: height * 0.75, size: 45, rotation: 15, duration: 2600 },
-    { delay: 500, startX: width * 0.85, startY: height * 0.8, size: 20, rotation: 75, duration: 3100 },
-    { delay: 100, startX: width * 0.5, startY: height * 0.1, size: 28, rotation: 90, duration: 2900 },
-    { delay: 700, startX: width * 0.3, startY: height * 0.85, size: 32, rotation: 120, duration: 2700 },
+    { delay: 0, x: width * 0.1, y: height * 0.15, size: 30 },
+    { delay: 200, x: width * 0.8, y: height * 0.2, size: 20 },
+    { delay: 100, x: width * 0.05, y: height * 0.45, size: 25 },
+    { delay: 300, x: width * 0.85, y: height * 0.55, size: 22 },
+    { delay: 150, x: width * 0.15, y: height * 0.75, size: 28 },
+    { delay: 250, x: width * 0.75, y: height * 0.8, size: 18 },
   ];
 
   useEffect(() => {
-    // Phase 0: Initial fade in with crystals (0-2s)
-    Animated.timing(fadeIn, {
-      toValue: 1,
-      duration: 1000,
-      useNativeDriver: true,
-    }).start();
-
-    // Phase 1: "Hello, IT explorers!" text (1.5s-3.5s)
-    setTimeout(() => {
-      setPhase(1);
-      Animated.timing(textFade, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }).start();
-    }, 1500);
-
-    // Phase 2: Door appears (3.5s-5s)
-    setTimeout(() => {
-      setPhase(2);
-      Animated.sequence([
-        Animated.timing(textFade, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(doorScale, {
-          toValue: 1,
-          duration: 800,
-          easing: Easing.out(Easing.back(1.2)),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, 3500);
-
-    // Phase 3: Door opens with light (5s-6.5s)
-    setTimeout(() => {
-      setPhase(3);
-      Animated.parallel([
-        Animated.timing(doorOpen, {
-          toValue: 1,
-          duration: 1200,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(lightOpacity, {
-          toValue: 1,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, 5000);
-
-    // Phase 4: Logo appears (6.5s-8s)
-    setTimeout(() => {
-      setPhase(4);
-      Animated.parallel([
-        Animated.timing(logoOpacity, {
+    // Timeline
+    const timeline = async () => {
+      // Phase 1: Hello text (1s - 3s)
+      setTimeout(() => {
+        setPhase(1);
+        Animated.timing(textOpacity, {
           toValue: 1,
           duration: 600,
           useNativeDriver: true,
-        }),
-        Animated.spring(logoScale, {
-          toValue: 1,
-          friction: 4,
-          tension: 40,
+        }).start();
+      }, 1000);
+
+      // Phase 2: Hide text, show door (3s - 4.5s)
+      setTimeout(() => {
+        Animated.timing(textOpacity, {
+          toValue: 0,
+          duration: 400,
           useNativeDriver: true,
-        }),
-      ]).start();
-    }, 6500);
+        }).start();
+      }, 3000);
 
-    // Phase 5: "Ready to dive into Information Systems?" (8s-9.5s)
-    setTimeout(() => {
-      setPhase(5);
-      Animated.timing(finalFade, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }).start();
-    }, 8000);
+      setTimeout(() => {
+        setPhase(2);
+        Animated.timing(doorOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }).start();
+      }, 3500);
 
-    // Finish splash screen (10s)
-    setTimeout(() => {
-      if (onFinish) {
-        onFinish();
-      }
-    }, 10000);
+      // Phase 3: Door opens (4.5s - 6s)
+      setTimeout(() => {
+        setPhase(3);
+        Animated.parallel([
+          Animated.timing(doorWidth, {
+            toValue: 300,
+            duration: 1200,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: false,
+          }),
+          Animated.timing(lightOpacity, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }, 4500);
+
+      // Phase 4: Logo appears (6s - 7.5s)
+      setTimeout(() => {
+        setPhase(4);
+        Animated.parallel([
+          Animated.timing(logoOpacity, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.spring(logoScale, {
+            toValue: 1,
+            friction: 5,
+            tension: 40,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }, 6000);
+
+      // Phase 5: Final text (7.5s - 9s)
+      setTimeout(() => {
+        setPhase(5);
+        Animated.timing(finalOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }).start();
+      }, 7500);
+
+      // Finish (9.5s)
+      setTimeout(() => {
+        if (onFinish) {
+          onFinish();
+        }
+      }, 9500);
+    };
+
+    timeline();
   }, []);
-
-  const doorLeftRotate = doorOpen.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '-75deg'],
-  });
-
-  const doorRightRotate = doorOpen.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '75deg'],
-  });
 
   return (
     <View style={styles.container}>
       <LinearGradient
         colors={['#0A1628', '#0F2A71', '#0A1628']}
+        locations={[0, 0.5, 1]}
         style={styles.gradient}
       >
         {/* Floating Crystals */}
@@ -246,74 +187,65 @@ export default function SplashScreen({ onFinish }) {
         ))}
 
         {/* Phase 1: Hello Text */}
-        {phase >= 1 && phase < 2 && (
-          <Animated.View style={[styles.centerContent, { opacity: textFade }]}>
-            <Text style={styles.helloText}>Hello, <Text style={styles.highlightText}>IT explorers!</Text></Text>
+        {phase >= 1 && phase < 3 && (
+          <Animated.View style={[styles.centerContent, { opacity: textOpacity }]}>
+            <Text style={styles.helloText}>
+              Hello, <Text style={styles.highlight}>IT explorers!</Text>
+            </Text>
           </Animated.View>
         )}
 
-        {/* Phase 2-4: Door */}
+        {/* Phase 2+: Door */}
         {phase >= 2 && (
-          <Animated.View 
-            style={[
-              styles.doorContainer,
-              { 
-                opacity: fadeIn,
-                transform: [{ scale: doorScale }]
-              }
-            ]}
-          >
-            {/* Light rays behind door */}
-            <Animated.View style={[styles.lightRays, { opacity: lightOpacity }]}>
-              <LinearGradient
-                colors={['rgba(251, 191, 36, 0)', 'rgba(251, 191, 36, 0.3)', 'rgba(251, 191, 36, 0.6)', 'rgba(255, 255, 255, 0.9)']}
-                style={styles.lightGradient}
-              />
+          <Animated.View style={[styles.doorContainer, { opacity: doorOpacity }]}>
+            {/* Light behind door */}
+            <Animated.View style={[styles.lightBehind, { opacity: lightOpacity }]} />
+
+            {/* Door frame with opening animation */}
+            <Animated.View style={[styles.doorFrame, { width: doorWidth }]}>
+              {/* Left door panel */}
+              <View style={styles.doorPanelLeft}>
+                <LinearGradient
+                  colors={['#F59E0B', '#D97706', '#B45309']}
+                  style={styles.doorGradient}
+                >
+                  <View style={styles.doorHandle} />
+                </LinearGradient>
+              </View>
+
+              {/* Right door panel */}
+              <View style={styles.doorPanelRight}>
+                <LinearGradient
+                  colors={['#F59E0B', '#D97706', '#B45309']}
+                  style={styles.doorGradient}
+                >
+                  <View style={styles.doorHandle} />
+                </LinearGradient>
+              </View>
+
+              {/* Center gap (light) */}
+              <View style={styles.doorGap}>
+                <LinearGradient
+                  colors={['#FFFBEB', '#FEF3C7', '#FBBF24']}
+                  style={styles.doorGapGradient}
+                />
+              </View>
             </Animated.View>
 
-            {/* Door frame */}
-            <View style={styles.doorFrame}>
-              {/* Left door */}
-              <Animated.View 
-                style={[
-                  styles.doorLeft,
-                  { transform: [{ perspective: 800 }, { rotateY: doorLeftRotate }] }
-                ]}
-              >
-                <LinearGradient
-                  colors={['#F59E0B', '#D97706', '#B45309']}
-                  style={styles.doorGradient}
-                />
-              </Animated.View>
-
-              {/* Right door */}
-              <Animated.View 
-                style={[
-                  styles.doorRight,
-                  { transform: [{ perspective: 800 }, { rotateY: doorRightRotate }] }
-                ]}
-              >
-                <LinearGradient
-                  colors={['#F59E0B', '#D97706', '#B45309']}
-                  style={styles.doorGradient}
-                />
-              </Animated.View>
-            </View>
-
-            {/* Logo floating through door */}
+            {/* Logo */}
             {phase >= 4 && (
-              <Animated.View 
+              <Animated.View
                 style={[
-                  styles.logoContainer,
+                  styles.logoWrapper,
                   {
                     opacity: logoOpacity,
-                    transform: [{ scale: logoScale }]
-                  }
+                    transform: [{ scale: logoScale }],
+                  },
                 ]}
               >
                 <Image
                   source={require('../../assets/logo.png')}
-                  style={styles.logoImage}
+                  style={styles.logo}
                   resizeMode="contain"
                 />
               </Animated.View>
@@ -321,21 +253,30 @@ export default function SplashScreen({ onFinish }) {
           </Animated.View>
         )}
 
-        {/* Phase 5: Final text */}
+        {/* Phase 5: Ready text */}
         {phase >= 5 && (
-          <Animated.View style={[styles.bottomContent, { opacity: finalFade }]}>
+          <Animated.View style={[styles.bottomText, { opacity: finalOpacity }]}>
             <Text style={styles.readyText}>Ready to dive into</Text>
-            <Text style={styles.isText}>Information Systems?</Text>
+            <Text style={styles.infoSysText}>Information Systems?</Text>
           </Animated.View>
         )}
 
-        {/* App branding */}
+        {/* Branding */}
         {phase >= 5 && (
-          <Animated.View style={[styles.branding, { opacity: finalFade }]}>
-            <Text style={styles.brandName}>
-              <Text style={styles.brandSI}>SI</Text>Lab Suite
-            </Text>
-            <Text style={styles.tagline}>Design. Model. Learn</Text>
+          <Animated.View style={[styles.branding, { opacity: finalOpacity }]}>
+            <View style={styles.brandLogoRow}>
+              <Image
+                source={require('../../assets/logo.png')}
+                style={styles.brandLogo}
+                resizeMode="contain"
+              />
+              <View>
+                <Text style={styles.brandName}>
+                  <Text style={styles.brandSI}>SI</Text>Lab Suite
+                </Text>
+                <Text style={styles.brandTagline}>Design. Model. Learn</Text>
+              </View>
+            </View>
           </Animated.View>
         )}
       </LinearGradient>
@@ -354,23 +295,19 @@ const styles = StyleSheet.create({
   },
   crystal: {
     position: 'absolute',
-    transform: [{ rotate: '45deg' }],
-  },
-  crystalInner: {
+    backgroundColor: '#FBBF24',
     borderRadius: 4,
-    transform: [{ rotate: '45deg' }],
   },
   centerContent: {
     position: 'absolute',
     alignItems: 'center',
-    justifyContent: 'center',
   },
   helloText: {
-    fontSize: 28,
+    fontSize: 26,
     color: '#FFFFFF',
     fontWeight: '400',
   },
-  highlightText: {
+  highlight: {
     color: '#FBBF24',
     fontWeight: '700',
   },
@@ -378,63 +315,69 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  lightRays: {
+  lightBehind: {
     position: 'absolute',
-    width: width,
-    height: height,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lightGradient: {
-    width: width * 1.5,
-    height: height * 1.5,
-    borderRadius: width,
+    width: 400,
+    height: 600,
+    backgroundColor: 'rgba(251, 191, 36, 0.3)',
+    borderRadius: 200,
   },
   doorFrame: {
-    width: 160,
     height: 280,
     flexDirection: 'row',
-    borderRadius: 8,
+    borderRadius: 12,
     overflow: 'hidden',
-    borderWidth: 4,
-    borderColor: '#D97706',
-    backgroundColor: 'rgba(251, 191, 36, 0.3)',
+    borderWidth: 6,
+    borderColor: '#B45309',
   },
-  doorLeft: {
-    width: '50%',
-    height: '100%',
-    transformOrigin: 'left',
+  doorPanelLeft: {
+    flex: 1,
+    borderRightWidth: 2,
+    borderRightColor: '#92400E',
   },
-  doorRight: {
-    width: '50%',
-    height: '100%',
-    transformOrigin: 'right',
+  doorPanelRight: {
+    flex: 1,
+    borderLeftWidth: 2,
+    borderLeftColor: '#92400E',
   },
   doorGradient: {
     flex: 1,
-    borderWidth: 2,
-    borderColor: '#B45309',
-  },
-  logoContainer: {
-    position: 'absolute',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  logoImage: {
-    width: 120,
-    height: 120,
+  doorHandle: {
+    width: 8,
+    height: 30,
+    backgroundColor: '#78350F',
+    borderRadius: 4,
   },
-  bottomContent: {
+  doorGap: {
     position: 'absolute',
-    bottom: height * 0.35,
+    left: '35%',
+    right: '35%',
+    top: 0,
+    bottom: 0,
+  },
+  doorGapGradient: {
+    flex: 1,
+  },
+  logoWrapper: {
+    position: 'absolute',
+  },
+  logo: {
+    width: 100,
+    height: 100,
+  },
+  bottomText: {
+    position: 'absolute',
+    bottom: height * 0.3,
     alignItems: 'center',
   },
   readyText: {
     fontSize: 18,
     color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: '400',
   },
-  isText: {
+  infoSysText: {
     fontSize: 22,
     color: '#FFFFFF',
     fontWeight: '700',
@@ -442,22 +385,31 @@ const styles = StyleSheet.create({
   },
   branding: {
     position: 'absolute',
-    bottom: 60,
+    bottom: 50,
     alignItems: 'center',
   },
+  brandLogoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandLogo: {
+    width: 50,
+    height: 50,
+    marginRight: 12,
+  },
   brandName: {
-    fontSize: 24,
+    fontSize: 22,
     color: '#FFFFFF',
-    fontWeight: '400',
+    fontWeight: '500',
   },
   brandSI: {
     color: '#FBBF24',
     fontWeight: '700',
   },
-  tagline: {
-    fontSize: 14,
+  brandTagline: {
+    fontSize: 13,
     color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 4,
     fontStyle: 'italic',
+    marginTop: 2,
   },
 });
