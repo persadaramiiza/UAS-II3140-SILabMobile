@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
-import { isAssistant, canManageContent } from '../utils/helpers';
+import { isAssistant, canManageContent, isAdmin } from '../utils/helpers';
 
 // Screens
 import LoginScreen from '../screens/Auth/LoginScreen';
@@ -40,6 +40,14 @@ import QuizManagementScreen from '../screens/Assistant/QuizManagementScreen';
 import CreateQuizScreen from '../screens/Assistant/CreateQuizScreen';
 import QuizMonitorScreen from '../screens/Assistant/QuizMonitorScreen';
 import QuizReportScreen from '../screens/Assistant/QuizReportScreen';
+
+// Admin Screens
+import { 
+  AdminHomeScreen, 
+  UserManagementScreen, 
+  SystemSettingsScreen, 
+  ActivityLogsScreen 
+} from '../screens/Admin';
 
 import { useAuth } from '../contexts/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
@@ -133,9 +141,72 @@ function AssistantHomeTabs() {
   );
 }
 
+// Admin Home Tabs
+function AdminHomeTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        ...commonHeaderStyle,
+        tabBarStyle: { 
+          backgroundColor: colors.background.primary,
+          borderTopColor: colors.border.light,
+          borderTopWidth: 1,
+          paddingBottom: 5,
+          paddingTop: 5,
+          height: 60,
+        },
+        tabBarActiveTintColor: '#0F2A71',
+        tabBarInactiveTintColor: colors.text.secondary,
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
+        tabBarShowLabel: false,
+        tabBarIcon: ({ color, size, focused }) => {
+          let iconName;
+          if (route.name === 'Dashboard') iconName = focused ? 'home' : 'home-outline';
+          else if (route.name === 'Users') iconName = focused ? 'people' : 'people-outline';
+          else if (route.name === 'Settings') iconName = focused ? 'settings' : 'settings-outline';
+          else if (route.name === 'Activity') iconName = focused ? 'pulse' : 'pulse-outline';
+          else if (route.name === 'Akun') iconName = focused ? 'person' : 'person-outline';
+          
+          // Special styling for focused home icon with circular background
+          if (route.name === 'Dashboard' && focused) {
+            return (
+              <View style={{
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: '#0F2A71',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}>
+                <Ionicons name="home" size={24} color="#FFFFFF" />
+              </View>
+            );
+          }
+          
+          return <Ionicons name={iconName} size={24} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen name="Dashboard" component={AdminHomeScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Users" component={UserManagementScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Settings" component={SystemSettingsScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Activity" component={ActivityLogsScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Akun" component={ProfileScreen} />
+    </Tab.Navigator>
+  );
+}
+
 // Wrapper component to handle role-based tabs
 function MainTabsWrapper() {
   const { userProfile } = useAuth();
+  
+  // Check if user is admin (has all permissions + user management)
+  if (isAdmin(userProfile)) {
+    return <AdminHomeTabs />;
+  }
   
   // Check if user is assistant or instructor
   if (canManageContent(userProfile)) {
@@ -241,6 +312,23 @@ export default function AppNavigator() {
           <Stack.Screen 
             name="QuizReport" 
             component={QuizReportScreen} 
+            options={{ headerShown: false }} 
+          />
+
+          {/* Admin Screens */}
+          <Stack.Screen 
+            name="UserManagement" 
+            component={UserManagementScreen} 
+            options={{ headerShown: false }} 
+          />
+          <Stack.Screen 
+            name="SystemSettings" 
+            component={SystemSettingsScreen} 
+            options={{ headerShown: false }} 
+          />
+          <Stack.Screen 
+            name="ActivityLogs" 
+            component={ActivityLogsScreen} 
             options={{ headerShown: false }} 
           />
 
