@@ -123,9 +123,9 @@ export default function InteractionDesignScreen() {
       id: `${selectedTool}-${Date.now()}`,
       type: selectedTool,
       x: Math.max(0, locationX - 40),
-      y: Math.max(0, locationY - 25),
+      y: Math.max(0, locationY - 15),
       width: selectedTool === 'circle' ? 60 : selectedTool === 'diamond' ? 80 : selectedTool === 'line' ? 100 : 80,
-      height: selectedTool === 'circle' ? 60 : selectedTool === 'diamond' ? 80 : selectedTool === 'line' ? 4 : 50,
+      height: selectedTool === 'circle' ? 60 : selectedTool === 'diamond' ? 80 : selectedTool === 'line' ? 30 : 50,
       label: '',
     };
 
@@ -374,6 +374,7 @@ export default function InteractionDesignScreen() {
                 onMove={(x, y) => updateElementPosition(element.id, x, y)}
                 onDelete={() => deleteSelectedElement()}
                 canDrag={selectedTool === 'select'}
+                canTap={selectedTool === 'text' || selectedTool === 'select'}
                 onDragStart={() => setScrollEnabled(false)}
                 onDragEnd={() => setScrollEnabled(true)}
               />
@@ -459,9 +460,10 @@ export default function InteractionDesignScreen() {
 }
 
 // Draggable Element Component
-function DraggableElement({ element, isSelected, onSelect, onMove, onDelete, canDrag, onDragStart, onDragEnd }) {
+function DraggableElement({ element, isSelected, onSelect, onMove, onDelete, canDrag, canTap, onDragStart, onDragEnd }) {
   const pan = useRef(new Animated.ValueXY({ x: element.x, y: element.y })).current;
   const isDragging = useRef(false);
+  const tapTimeout = useRef(null);
 
   useEffect(() => {
     if (!isDragging.current) {
@@ -473,13 +475,16 @@ function DraggableElement({ element, isSelected, onSelect, onMove, onDelete, can
     onStartShouldSetPanResponder: () => canDrag,
     onMoveShouldSetPanResponder: (_, gestureState) => {
       // Only capture move if significant movement detected and canDrag is true
-      return canDrag && (Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2);
+      return canDrag && (Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5);
     },
     onPanResponderGrant: () => {
       if (canDrag) {
-        isDragging.current = true;
-        onDragStart && onDragStart();
-        onSelect();
+        // Start a timer to distinguish between tap and drag
+        tapTimeout.current = setTimeout(() => {
+          isDragging.current = true;
+          onDragStart && onDragStart();
+        }, 100);
+        
         pan.setOffset({
           x: pan.x._value,
           y: pan.y._value,
@@ -487,10 +492,26 @@ function DraggableElement({ element, isSelected, onSelect, onMove, onDelete, can
         pan.setValue({ x: 0, y: 0 });
       }
     },
-    onPanResponderMove: canDrag 
-      ? Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false })
-      : undefined,
-    onPanResponderRelease: () => {
+    onPanResponderMove: (evt, gestureState) => {
+      if (canDrag) {
+        // If moved significantly, it's definitely a drag
+        if (Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5) {
+          if (!isDragging.current) {
+            isDragging.current = true;
+            onDragStart && onDragStart();
+          }
+          pan.x.setValue(gestureState.dx);
+          pan.y.setValue(gestureState.dy);
+        }
+      }
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      // Clear tap timeout
+      if (tapTimeout.current) {
+        clearTimeout(tapTimeout.current);
+        tapTimeout.current = null;
+      }
+      
       if (canDrag && isDragging.current) {
         isDragging.current = false;
         onDragEnd && onDragEnd();
@@ -500,10 +521,17 @@ function DraggableElement({ element, isSelected, onSelect, onMove, onDelete, can
         pan.setValue({ x: newX, y: newY });
         onMove(newX, newY);
       } else {
+        // It was a tap, not a drag
         pan.flattenOffset();
+        pan.setValue({ x: element.x, y: element.y });
+        onSelect();
       }
     },
     onPanResponderTerminate: () => {
+      if (tapTimeout.current) {
+        clearTimeout(tapTimeout.current);
+        tapTimeout.current = null;
+      }
       isDragging.current = false;
       onDragEnd && onDragEnd();
       pan.flattenOffset();
@@ -519,7 +547,8 @@ function DraggableElement({ element, isSelected, onSelect, onMove, onDelete, can
       case 'diamond':
         return { backgroundColor: '#FEF3C7', transform: [{ rotate: '45deg' }] };
       case 'line':
-        return { backgroundColor: '#374151', height: 3, borderWidth: 0 };
+        // Line has a larger touch area but visually thin
+        return { backgroundColor: 'transparent', borderWidth: 0 };
       case 'text':
         return { backgroundColor: 'transparent', borderStyle: 'dashed' };
       default:
@@ -527,9 +556,36 @@ function DraggableElement({ element, isSelected, onSelect, onMove, onDelete, can
     }
   };
 
+  // Render line element with proper visual
+  const renderLineElement = () => {
+    if (element.type === 'line') {
+      return (
+        <View 
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: 0,
+            right: 0,
+            height: 4,
+            backgroundColor: '#374151',
+            marginTop: -2,
+          }}
+        />
+      );
+    }
+    return null;
+  };
+
+  // Handle tap when not dragging (for text tool or selection)
+  const handleTap = () => {
+    if (canTap) {
+      onSelect();
+    }
+  };
+
   return (
     <Animated.View
-      {...panResponder.panHandlers}
+      {...(canDrag ? panResponder.panHandlers : {})}
       style={[
         styles.draggableElement,
         {
@@ -537,14 +593,22 @@ function DraggableElement({ element, isSelected, onSelect, onMove, onDelete, can
           top: pan.y,
           width: element.width,
           height: element.height,
-          borderWidth: isSelected ? 2 : 1,
+          borderWidth: element.type === 'line' ? 0 : (isSelected ? 2 : 1),
           borderColor: isSelected ? '#FBBC04' : '#374151',
         },
         getShapeStyle(),
       ]}
     >
-      <View style={styles.elementTouchable}>
-        {element.label && element.type !== 'diamond' && (
+      {/* Line visual element */}
+      {renderLineElement()}
+      
+      <TouchableOpacity 
+        style={[styles.elementTouchable, element.type === 'line' && { backgroundColor: 'transparent' }]}
+        activeOpacity={0.7}
+        onPress={handleTap}
+        disabled={canDrag}
+      >
+        {element.label && element.type !== 'diamond' && element.type !== 'line' && (
           <Text style={styles.elementLabel} numberOfLines={1}>
             {element.label}
           </Text>
@@ -554,7 +618,22 @@ function DraggableElement({ element, isSelected, onSelect, onMove, onDelete, can
             {element.label}
           </Text>
         )}
-      </View>
+      </TouchableOpacity>
+      
+      {/* Selection indicator for line */}
+      {isSelected && element.type === 'line' && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          borderWidth: 2,
+          borderColor: '#FBBC04',
+          borderStyle: 'dashed',
+        }} />
+      )}
+      
       {isSelected && canDrag && (
         <View style={styles.dragHandle}>
           <Ionicons name="move" size={12} color="#FBBC04" />

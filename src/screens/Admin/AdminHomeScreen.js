@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
   RefreshControl,
+  ImageBackground,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -137,21 +138,20 @@ export default function AdminHomeScreen({ navigation }) {
     <View style={[styles.statCard, { borderLeftColor: color }]}>
       <View style={styles.statContent}>
         <View style={[styles.statIconContainer, { backgroundColor: `${color}15` }]}>
-          <Ionicons name={icon} size={20} color={color} />
+          <Ionicons name={icon} size={24} color={color} />
         </View>
-        <View>
-          <Text style={styles.statValue}>{value}</Text>
-          <Text style={styles.statLabel}>{label}</Text>
-        </View>
+        <Text style={styles.statValue}>{value}</Text>
+        <Text style={styles.statLabel}>{label}</Text>
       </View>
     </View>
   );
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#0F2A71', '#1E3A8A']}
-        style={styles.header}
+      <ImageBackground
+          source={require('../../../assets/header-bg2.png')}
+          style={styles.header}
+          imageStyle={styles.headerBackground}
       >
         <View style={styles.headerContent}>
           <Text style={styles.welcomeText}>Welcome back,</Text>
@@ -161,7 +161,7 @@ export default function AdminHomeScreen({ navigation }) {
         <View style={styles.headerImage}>
           <Ionicons name="shield-checkmark" size={80} color="rgba(255,255,255,0.2)" />
         </View>
-      </LinearGradient>
+      </ImageBackground>
 
       <ScrollView
         style={styles.content}
@@ -291,11 +291,12 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    justifyContent: 'space-between',
     marginBottom: 24,
   },
   statCard: {
     width: CARD_WIDTH,
+    height: CARD_WIDTH,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
@@ -305,28 +306,30 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
+    marginBottom: 12,
   },
   statContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
   },
   statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginBottom: 12,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: '700',
     color: '#111827',
+    marginTop: 8,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#6B7280',
-    marginTop: 2,
+    marginTop: 4,
   },
   sectionTitle: {
     fontSize: 18,
