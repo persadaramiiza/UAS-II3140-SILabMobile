@@ -143,3 +143,78 @@ export async function deleteQuizQuestion(questionId) {
   if (error) throw error;
   return true;
 }
+
+// Get quiz participation stats for a quiz topic
+export async function getQuizParticipationStats(topicId) {
+  try {
+    // Get total student count
+    const { count: totalStudents } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'student');
+
+    // Get submissions for this quiz
+    const { data: submissions, error } = await supabase
+      .from('submissions')
+      .select('id, student_id, grade, submitted_at')
+      .eq('assignment_id', topicId);
+
+    if (error) throw error;
+
+    const participationCount = submissions?.length || 0;
+    
+    // Calculate average score
+    let totalScore = 0;
+    let scoredCount = 0;
+    submissions?.forEach(sub => {
+      if (sub.grade && typeof sub.grade === 'object' && sub.grade.score !== undefined) {
+        totalScore += sub.grade.score;
+        scoredCount++;
+      } else if (typeof sub.grade === 'number') {
+        totalScore += sub.grade;
+        scoredCount++;
+      }
+    });
+
+    const averageScore = scoredCount > 0 ? Math.round(totalScore / scoredCount) : 0;
+
+    return {
+      totalStudents: totalStudents || 0,
+      participationCount,
+      averageScore,
+      submissions: submissions || []
+    };
+  } catch (error) {
+    console.error('Failed to get quiz stats:', error);
+    return {
+      totalStudents: 0,
+      participationCount: 0,
+      averageScore: 0,
+      submissions: []
+    };
+  }
+}
+
+// Get all quiz attempts/submissions for a specific quiz
+export async function getQuizAttempts(topicId) {
+  const { data, error } = await supabase
+    .from('submissions')
+    .select(`
+      id,
+      student_id,
+      student_name,
+      submitted_at,
+      grade,
+      notes,
+      users:student_id (
+        id,
+        name,
+        student_id
+      )
+    `)
+    .eq('assignment_id', topicId)
+    .order('submitted_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}

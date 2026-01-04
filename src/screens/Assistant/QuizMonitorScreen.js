@@ -7,10 +7,12 @@ import {
   ScrollView,
   RefreshControl,
   Dimensions,
+  Switch,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { getQuizTopic } from '../../services/quizApi';
+import { getQuizTopic, getQuizAttempts } from '../../services/quizApi';
 import { supabase } from '../../services/supabase';
 import { formatTime } from '../../utils/helpers';
 
@@ -40,68 +42,81 @@ export default function QuizMonitorScreen({ navigation, route }) {
       // 2. Fetch All Students (to know total count)
       const { data: allStudents, count: totalStudents } = await supabase
         .from('users')
-        .select('id, name, student_id')
+        .select('id, name, student_id', { count: 'exact' })
         .eq('role', 'student');
 
-      // 3. Fetch Submissions/Progress for this quiz
-      // Assuming we have a 'quiz_submissions' or similar table, or using 'submissions' table if unified.
-      // The schema provided earlier had 'submissions' table linked to 'assignments'.
-      // It didn't explicitly show quiz submissions.
-      // However, usually quizzes have their own tracking or share the table.
-      // Let's assume for now we use a 'quiz_attempts' table or similar, OR we mock it if it doesn't exist.
-      // Given the schema dump earlier:
-      // CREATE TABLE public.quiz_questions ...
-      // CREATE TABLE public.quiz_topics ...
-      // No quiz_submissions table shown.
-      // But `submissions` table has `assignment_id`. Maybe quizzes are treated as assignments?
-      // Or maybe I need to create a table? I can't.
-      // I will assume there is a table `quiz_attempts` or I will query `submissions` assuming `assignment_id` can be a quiz_id.
-      // Let's try querying `submissions` with `assignment_id` = `quizId`.
-      
-      const { data: attempts } = await supabase
-        .from('submissions')
-        .select('*')
-        .eq('assignment_id', quizId); // Assuming quizId is stored here
+      // 3. Fetch Quiz Attempts/Submissions
+      const attempts = await getQuizAttempts(quizId);
+
+      // Create a map of student_id -> attempt for quick lookup
+      const attemptMap = {};
+      attempts.forEach(a => {
+        attemptMap[a.student_id] = a;
+      });
 
       // Map students with their progress
-      const studentProgress = allStudents.map(student => {
-        const attempt = attempts?.find(a => a.student_id === student.id);
+      const studentProgress = (allStudents || []).map(student => {
+        const attempt = attemptMap[student.id];
         
-        // Mock progress calculation if real data is missing
-        // In a real app, we'd have `answers` jsonb in submission to calc progress
-        const progress = attempt ? (attempt.grade ? 100 : 50) : 0; 
-        const status = attempt ? (attempt.grade ? 'Completed' : 'Active') : 'Not Started';
-        const score = attempt?.grade ? attempt.grade.score : 0;
-        const startTime = attempt?.submitted_at ? new Date(attempt.submitted_at) : null; // This is actually submit time
-        // We need start time. Assuming it's in metadata or we just use submit time as "last active"
-        
+        let progress = 0;
+        let status = 'Not Started';
+        let score = null;
+        let startTime = null;
+
+        if (attempt) {
+          // Check if grade exists (quiz completed)
+          if (attempt.grade) {
+            status = 'Completed';
+            progress = 100;
+            // Handle grade as object or number
+            if (typeof attempt.grade === 'object') {
+              score = attempt.grade.score;
+            } else {
+              score = attempt.grade;
+            }
+          } else {
+            status = 'In Progress';
+            progress = 50; // Partial progress if submitted but no grade
+          }
+          startTime = attempt.submitted_at;
+        }
+
         return {
-          ...student,
+          id: student.id,
+          name: student.name || attempt?.student_name || 'Unknown',
+          student_id: student.student_id || '-',
           progress,
           status,
           score,
           startTime,
-          timeLeft: '12:45 left' // Mock
         };
       });
 
+      // Sort: Completed first, then In Progress, then Not Started
+      studentProgress.sort((a, b) => {
+        const order = { 'Completed': 0, 'In Progress': 1, 'Not Started': 2 };
+        return order[a.status] - order[b.status];
+      });
+
       // Calculate Stats
-      const activeCount = studentProgress.filter(s => s.status === 'Active').length;
       const completedCount = studentProgress.filter(s => s.status === 'Completed').length;
+      const activeCount = studentProgress.filter(s => s.status === 'In Progress').length;
       const totalProgress = studentProgress.reduce((acc, s) => acc + s.progress, 0);
-      const totalScore = studentProgress.reduce((acc, s) => acc + s.score, 0);
+      const completedWithScores = studentProgress.filter(s => s.score !== null);
+      const totalScore = completedWithScores.reduce((acc, s) => acc + (s.score || 0), 0);
 
       setStudents(studentProgress);
       setStats({
         active: activeCount,
         completed: completedCount,
-        total: totalStudents || 42,
-        avgProgress: totalStudents ? Math.round(totalProgress / totalStudents) : 0,
-        avgScore: completedCount ? Math.round(totalScore / completedCount) : 0,
+        total: totalStudents || studentProgress.length,
+        avgProgress: studentProgress.length ? Math.round(totalProgress / studentProgress.length) : 0,
+        avgScore: completedWithScores.length ? Math.round(totalScore / completedWithScores.length) : 0,
       });
 
     } catch (error) {
       console.error('Failed to load monitor data:', error);
+      Alert.alert('Error', 'Failed to load quiz data');
     } finally {
       setLoading(false);
     }
@@ -221,42 +236,54 @@ export default function QuizMonitorScreen({ navigation, route }) {
               <View style={[
                 styles.statusBadge,
                 student.status === 'Completed' ? styles.statusCompleted : 
-                student.status === 'Active' ? styles.statusActive : styles.statusPending
+                student.status === 'In Progress' ? styles.statusActive : styles.statusPending
               ]}>
                 <Ionicons 
-                  name={student.status === 'Completed' ? "checkmark-circle" : "time"} 
+                  name={student.status === 'Completed' ? "checkmark-circle" : student.status === 'In Progress' ? "time" : "ellipse-outline"} 
                   size={14} 
-                  color={student.status === 'Completed' ? "#10B981" : student.status === 'Active' ? "#3B82F6" : "#9CA3AF"} 
+                  color={student.status === 'Completed' ? "#10B981" : student.status === 'In Progress' ? "#3B82F6" : "#9CA3AF"} 
                 />
                 <Text style={[
                   styles.statusText,
                   student.status === 'Completed' ? styles.textCompleted : 
-                  student.status === 'Active' ? styles.textActive : styles.textPending
+                  student.status === 'In Progress' ? styles.textActive : styles.textPending
                 ]}>{student.status}</Text>
               </View>
             </View>
 
-            <View style={styles.progressContainer}>
-              <Text style={styles.progressLabel}>Progress</Text>
-              <Text style={styles.progressValue}>{student.progress}%</Text>
-            </View>
-            <View style={styles.progressBarBg}>
-              <View 
-                style={[
-                  styles.progressBarFill, 
-                  { width: `${student.progress}%`, backgroundColor: student.status === 'Completed' ? '#10B981' : '#3B82F6' }
-                ]} 
-              />
-            </View>
+            {student.status !== 'Not Started' && (
+              <>
+                <View style={styles.progressContainer}>
+                  <Text style={styles.progressLabel}>
+                    {student.status === 'Completed' ? 'Score' : 'Progress'}
+                  </Text>
+                  <Text style={styles.progressValue}>
+                    {student.status === 'Completed' && student.score !== null 
+                      ? `${student.score}%` 
+                      : `${student.progress}%`}
+                  </Text>
+                </View>
+                <View style={styles.progressBarBg}>
+                  <View 
+                    style={[
+                      styles.progressBarFill, 
+                      { 
+                        width: `${student.status === 'Completed' ? (student.score || 0) : student.progress}%`, 
+                        backgroundColor: student.status === 'Completed' ? '#10B981' : '#3B82F6' 
+                      }
+                    ]} 
+                  />
+                </View>
+              </>
+            )}
 
             <View style={styles.studentFooter}>
               <View style={styles.footerItem}>
                 <Ionicons name="time-outline" size={14} color="#6B7280" />
-                <Text style={styles.footerText}>Started: {student.startTime ? formatTime(student.startTime) : '-'}</Text>
+                <Text style={styles.footerText}>
+                  {student.startTime ? `Submitted: ${formatTime(student.startTime)}` : 'Not started'}
+                </Text>
               </View>
-              {student.status === 'Active' && (
-                <Text style={styles.timeLeftText}>{student.timeLeft}</Text>
-              )}
             </View>
           </View>
         ))}
@@ -266,8 +293,6 @@ export default function QuizMonitorScreen({ navigation, route }) {
     </View>
   );
 }
-
-import { Switch } from 'react-native'; // Added missing import
 
 const styles = StyleSheet.create({
   container: {

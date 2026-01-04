@@ -12,7 +12,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { listQuizTopics, deleteQuizTopic } from '../../services/quizApi';
+import { listQuizTopics, deleteQuizTopic, getQuizParticipationStats } from '../../services/quizApi';
 import { formatDate, formatTime } from '../../utils/helpers';
 
 const { width } = Dimensions.get('window');
@@ -26,7 +26,21 @@ export default function QuizManagementScreen({ navigation }) {
   const loadQuizzes = async () => {
     try {
       const data = await listQuizTopics();
-      setQuizzes(data);
+      
+      // Load participation stats for each quiz
+      const quizzesWithStats = await Promise.all(
+        data.map(async (quiz) => {
+          const stats = await getQuizParticipationStats(quiz.id);
+          return {
+            ...quiz,
+            participation_count: stats.participationCount,
+            total_students: stats.totalStudents,
+            average_score: stats.averageScore,
+          };
+        })
+      );
+      
+      setQuizzes(quizzesWithStats);
     } catch (error) {
       console.error('Failed to load quizzes:', error);
       Alert.alert('Error', 'Failed to load quizzes');
@@ -147,23 +161,25 @@ export default function QuizManagementScreen({ navigation }) {
             <View style={styles.progressHeader}>
               <Text style={styles.progressLabel}>Participation</Text>
               <Text style={styles.progressValue}>
-                {quiz.participation_count || 0}/{quiz.total_students || 42} students
+                {quiz.participation_count || 0}/{quiz.total_students || 0} students
               </Text>
             </View>
             <View style={styles.progressBarBg}>
               <View 
                 style={[
                   styles.progressBarFill, 
-                  { width: `${((quiz.participation_count || 0) / (quiz.total_students || 42)) * 100}%` }
+                  { width: `${quiz.total_students > 0 ? ((quiz.participation_count || 0) / quiz.total_students) * 100 : 0}%` }
                 ]} 
               />
             </View>
             
-            <View style={styles.statsRow}>
-              <Ionicons name="trending-up" size={20} color="#3B82F6" />
-              <Text style={styles.statsLabel}>Average Score</Text>
-              <Text style={styles.statsValue}>{quiz.average_score || 0}%</Text>
-            </View>
+            {quiz.participation_count > 0 && (
+              <View style={styles.statsRow}>
+                <Ionicons name="trending-up" size={20} color="#3B82F6" />
+                <Text style={styles.statsLabel}>Average Score</Text>
+                <Text style={styles.statsValue}>{quiz.average_score || 0}%</Text>
+              </View>
+            )}
           </View>
         )}
 
