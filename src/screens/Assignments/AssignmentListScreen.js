@@ -151,7 +151,7 @@ export default function AssignmentListScreen({ route, navigation }) {
 
             {/* Score if graded */}
             {status === 'Graded' && submission?.grade !== null && (
-              <Text style={styles.scoreText}>Score: {submission.grade}/100</Text>
+              <Text style={styles.scoreText}>Score: {typeof submission.grade === 'object' ? submission.grade?.score : submission.grade}/100</Text>
             )}
           </View>
 

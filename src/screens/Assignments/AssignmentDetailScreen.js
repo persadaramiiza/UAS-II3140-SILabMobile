@@ -385,7 +385,7 @@ export default function AssignmentDetailScreen({ route, navigation }) {
             <Text style={styles.sectionTitle}>Your Submission</Text>
             <View style={styles.gradeBox}>
               <Text style={styles.gradeLabel}>Score</Text>
-              <Text style={styles.gradeValue}>{submission.grade}/100</Text>
+              <Text style={styles.gradeValue}>{typeof submission.grade === 'object' ? submission.grade?.score : submission.grade}/100</Text>
             </View>
             {submission.link && (
               <View style={styles.submissionDetail}>

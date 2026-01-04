@@ -92,6 +92,8 @@ export default function ActivityLogsScreen({ navigation }) {
 
         // Grading activity
         if (s.graded_at) {
+          // Handle grade as object or number
+          const gradeDisplay = typeof s.grade === 'object' ? s.grade?.score : s.grade;
           allActivities.push({
             id: `grade-${s.id}`,
             type: 'assignment',
@@ -99,7 +101,7 @@ export default function ActivityLogsScreen({ navigation }) {
             color: '#10B981',
             bgColor: '#ECFDF5',
             title: 'Assignment Graded',
-            description: `${s.student_name}'s submission graded: ${s.grade}`,
+            description: `${s.student_name}'s submission graded: ${gradeDisplay || 'N/A'}`,
             tag: 'assignment',
             by: s.graded_by || 'Assistant',
             timestamp: s.graded_at,

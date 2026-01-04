@@ -84,7 +84,9 @@ export default function GradeSubmissionsScreen({ navigation, route }) {
 
   const openGradeModal = (submission) => {
     setSelectedSubmission(submission);
-    setGrade(submission.grade?.toString() || '');
+    // Handle grade as object or number
+    const gradeValue = typeof submission.grade === 'object' ? submission.grade?.score : submission.grade;
+    setGrade(gradeValue?.toString() || '');
     setFeedback(submission.notes || '');
     setGradeModalVisible(true);
   };
@@ -248,7 +250,7 @@ export default function GradeSubmissionsScreen({ navigation, route }) {
 
         {isGraded ? (
           <View style={styles.gradeInfo}>
-            <Text style={styles.gradeLabel}>Grade: {submission.grade}/100</Text>
+            <Text style={styles.gradeLabel}>Grade: {typeof submission.grade === 'object' ? submission.grade?.score : submission.grade}/100</Text>
           </View>
         ) : (
           <TouchableOpacity
