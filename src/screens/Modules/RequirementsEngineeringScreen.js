@@ -7,10 +7,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 const STORAGE_KEY = '@moscow_requirements';
 
@@ -117,6 +120,88 @@ export default function RequirementsEngineeringScreen() {
   const getRequirementsByCategory = (key) => requirements.filter((r) => r.category === key);
   const getCategoryLabel = (key) => CATEGORIES.find((c) => c.key === key)?.label || 'Must Have';
 
+  const exportRequirements = async () => {
+    if (requirements.length === 0) {
+      Alert.alert('Export', 'No requirements to export');
+      return;
+    }
+
+    try {
+      // Generate markdown content
+      let content = `# MoSCoW Requirements Document\n\n`;
+      content += `Generated: ${new Date().toLocaleDateString()}\n\n`;
+      content += `---\n\n`;
+
+      CATEGORIES.forEach((cat) => {
+        const reqs = getRequirementsByCategory(cat.key);
+        content += `## ${cat.label} (${reqs.length})\n\n`;
+        content += `*${cat.description}*\n\n`;
+        
+        if (reqs.length === 0) {
+          content += `_No requirements in this category_\n\n`;
+        } else {
+          reqs.forEach((req, index) => {
+            content += `### ${index + 1}. ${req.title}\n\n`;
+            content += `- **Stakeholder:** ${req.stakeholder}\n`;
+            content += `- **Acceptance Criteria:** ${req.acceptanceCriteria}\n\n`;
+          });
+        }
+        content += `---\n\n`;
+      });
+
+      // Also create JSON export
+      const jsonContent = JSON.stringify({
+        exportDate: new Date().toISOString(),
+        requirements: requirements,
+        summary: {
+          must: getRequirementsByCategory('must').length,
+          should: getRequirementsByCategory('should').length,
+          could: getRequirementsByCategory('could').length,
+          wont: getRequirementsByCategory('wont').length,
+        }
+      }, null, 2);
+
+      // Show export options
+      Alert.alert(
+        'Export Requirements',
+        'Choose export format:',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Markdown (.md)', 
+            onPress: () => saveAndShareFile(content, 'moscow_requirements.md', 'text/markdown')
+          },
+          { 
+            text: 'JSON (.json)', 
+            onPress: () => saveAndShareFile(jsonContent, 'moscow_requirements.json', 'application/json')
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Export error:', error);
+      Alert.alert('Error', 'Failed to export requirements');
+    }
+  };
+
+  const saveAndShareFile = async (content, filename, mimeType) => {
+    try {
+      const fileUri = FileSystem.documentDirectory + filename;
+      await FileSystem.writeAsStringAsync(fileUri, content);
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: mimeType,
+          dialogTitle: 'Export Requirements',
+        });
+      } else {
+        Alert.alert('Success', `File saved to: ${fileUri}`);
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      Alert.alert('Error', 'Failed to share file');
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -130,7 +215,7 @@ export default function RequirementsEngineeringScreen() {
               <Ionicons name="add" size={16} color="#111" />
               <Text style={styles.addBtnText}>Add</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.exportBtn} onPress={() => Alert.alert('Export', 'Exported!')}>
+            <TouchableOpacity style={styles.exportBtn} onPress={exportRequirements}>
               <Ionicons name="download-outline" size={16} color="#FFF" />
               <Text style={styles.exportBtnText}>Export</Text>
             </TouchableOpacity>

@@ -13,6 +13,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const STORAGE_KEY = '@ea_diagram';
@@ -158,8 +160,86 @@ export default function EnterpriseArchitectureScreen() {
     ]);
   };
 
-  const handleDownload = () => {
-    Alert.alert('Export', 'EA Diagram data copied to clipboard!');
+  const handleDownload = async () => {
+    const totalComponents = getTotalComponents();
+    if (totalComponents === 0) {
+      Alert.alert('Export', 'No components to export');
+      return;
+    }
+
+    try {
+      // Generate markdown content
+      let content = `# Enterprise Architecture Diagram\n\n`;
+      content += `Generated: ${new Date().toLocaleDateString()}\n\n`;
+      content += `---\n\n`;
+      content += `## Summary\n\n`;
+      content += `Total Components: ${totalComponents}\n\n`;
+
+      LAYERS.forEach((layer) => {
+        const layerComponents = components[layer.id] || [];
+        content += `### ${layer.label} Layer (${layerComponents.length})\n\n`;
+        
+        if (layerComponents.length === 0) {
+          content += `_No components_\n\n`;
+        } else {
+          layerComponents.forEach((comp, index) => {
+            content += `${index + 1}. ${comp.name}\n`;
+          });
+          content += `\n`;
+        }
+      });
+
+      // JSON export
+      const jsonContent = JSON.stringify({
+        exportDate: new Date().toISOString(),
+        layers: LAYERS.map(l => l.label),
+        components: components,
+        summary: {
+          business: components.business?.length || 0,
+          application: components.application?.length || 0,
+          data: components.data?.length || 0,
+          technology: components.technology?.length || 0,
+        }
+      }, null, 2);
+
+      Alert.alert(
+        'Export EA Diagram',
+        'Choose export format:',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Markdown (.md)', 
+            onPress: () => saveAndShareFile(content, 'ea_diagram.md', 'text/markdown')
+          },
+          { 
+            text: 'JSON (.json)', 
+            onPress: () => saveAndShareFile(jsonContent, 'ea_diagram.json', 'application/json')
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Export error:', error);
+      Alert.alert('Error', 'Failed to export diagram');
+    }
+  };
+
+  const saveAndShareFile = async (content, filename, mimeType) => {
+    try {
+      const fileUri = FileSystem.documentDirectory + filename;
+      await FileSystem.writeAsStringAsync(fileUri, content);
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: mimeType,
+          dialogTitle: 'Export EA Diagram',
+        });
+      } else {
+        Alert.alert('Success', `File saved to: ${fileUri}`);
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      Alert.alert('Error', 'Failed to share file');
+    }
   };
 
   const getLayerColor = (layerId) => {

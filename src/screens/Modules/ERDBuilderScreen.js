@@ -12,6 +12,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import { useNavigation } from '@react-navigation/native';
 
 const STORAGE_KEY = '@erd_diagram';
 
@@ -190,6 +193,114 @@ export default function ERDBuilderScreen() {
     return RELATIONSHIP_TYPES.find((r) => r.key === type)?.symbol || type;
   };
 
+  const handleExport = async () => {
+    if (entities.length === 0) {
+      Alert.alert('Export', 'No entities to export');
+      return;
+    }
+
+    try {
+      // Generate markdown content
+      let content = `# Entity Relationship Diagram\n\n`;
+      content += `Generated: ${new Date().toLocaleDateString()}\n\n`;
+      content += `---\n\n`;
+      content += `## Summary\n\n`;
+      content += `- Total Entities: ${entities.length}\n`;
+      content += `- Total Relationships: ${relationships.length}\n\n`;
+
+      content += `## Entities\n\n`;
+      entities.forEach((entity) => {
+        content += `### ${entity.name}\n\n`;
+        content += `| Attribute | PK | FK |\n`;
+        content += `|-----------|:--:|:--:|\n`;
+        entity.attributes.forEach((attr) => {
+          content += `| ${attr.name} | ${attr.isPK ? '✓' : ''} | ${attr.isFK ? '✓' : ''} |\n`;
+        });
+        content += `\n`;
+      });
+
+      if (relationships.length > 0) {
+        content += `## Relationships\n\n`;
+        content += `| From | Relationship | To |\n`;
+        content += `|------|:------------:|-----|\n`;
+        relationships.forEach((rel) => {
+          const relLabel = RELATIONSHIP_TYPES.find(r => r.key === rel.type)?.label || rel.type;
+          content += `| ${getEntityName(rel.from)} | ${relLabel} | ${getEntityName(rel.to)} |\n`;
+        });
+        content += `\n`;
+      }
+
+      // Generate SQL DDL
+      let sqlContent = `-- ERD Export - Generated ${new Date().toLocaleDateString()}\n\n`;
+      entities.forEach((entity) => {
+        sqlContent += `CREATE TABLE ${entity.name.toLowerCase().replace(/\s+/g, '_')} (\n`;
+        entity.attributes.forEach((attr, index) => {
+          const comma = index < entity.attributes.length - 1 ? ',' : '';
+          const pkNote = attr.isPK ? ' PRIMARY KEY' : '';
+          const fkNote = attr.isFK ? ' -- FOREIGN KEY' : '';
+          sqlContent += `  ${attr.name.toLowerCase().replace(/\s+/g, '_')} VARCHAR(255)${pkNote}${comma}${fkNote}\n`;
+        });
+        sqlContent += `);\n\n`;
+      });
+
+      // JSON export
+      const jsonContent = JSON.stringify({
+        exportDate: new Date().toISOString(),
+        entities: entities,
+        relationships: relationships,
+        summary: {
+          totalEntities: entities.length,
+          totalRelationships: relationships.length,
+          totalAttributes: entities.reduce((sum, e) => sum + e.attributes.length, 0),
+        }
+      }, null, 2);
+
+      Alert.alert(
+        'Export ERD',
+        'Choose export format:',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Markdown', 
+            onPress: () => saveAndShareFile(content, 'erd_diagram.md', 'text/markdown')
+          },
+          { 
+            text: 'SQL DDL', 
+            onPress: () => saveAndShareFile(sqlContent, 'erd_schema.sql', 'text/plain')
+          },
+          { 
+            text: 'JSON', 
+            onPress: () => saveAndShareFile(jsonContent, 'erd_diagram.json', 'application/json')
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Export error:', error);
+      Alert.alert('Error', 'Failed to export ERD');
+    }
+  };
+
+  const saveAndShareFile = async (content, filename, mimeType) => {
+    try {
+      const fileUri = FileSystem.documentDirectory + filename;
+      await FileSystem.writeAsStringAsync(fileUri, content);
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: mimeType,
+          dialogTitle: 'Export ERD',
+        });
+      } else {
+        Alert.alert('Success', `File saved to: ${fileUri}`);
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      Alert.alert('Error', 'Failed to share file');
+    }
+  };
+
+  const navigation = useNavigation();
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -198,6 +309,15 @@ export default function ERDBuilderScreen() {
         end={{ x: 1, y: 0 }}
         style={styles.header}
       >
+        <View style={styles.headerRow}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
+            <Ionicons name="download-outline" size={18} color="#FFF" />
+            <Text style={styles.exportButtonText}>Export</Text>
+          </TouchableOpacity>
+        </View>
         <Text style={styles.title}>ERD Viewer</Text>
         <Text style={styles.subtitle}>Entity Relationship Diagram Builder</Text>
       </LinearGradient>
@@ -559,6 +679,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 40,
     paddingBottom: 16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  exportButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
   },
   title: {
     fontSize: 24,

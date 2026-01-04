@@ -17,6 +17,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CANVAS_WIDTH = SCREEN_WIDTH - 64;
@@ -187,8 +189,88 @@ export default function InteractionDesignScreen() {
     saveDiagram(updated);
   };
 
-  const handleDownload = () => {
-    Alert.alert('Export', 'Diagram data exported successfully!');
+  const handleDownload = async () => {
+    if (elements.length === 0) {
+      Alert.alert('Export', 'No diagram elements to export');
+      return;
+    }
+
+    try {
+      // Generate markdown content
+      let content = `# Interaction Design Diagram\n\n`;
+      content += `Generated: ${new Date().toLocaleDateString()}\n\n`;
+      content += `---\n\n`;
+      content += `## Diagram Summary\n\n`;
+      content += `Total Elements: ${elements.length}\n\n`;
+
+      // Group by type
+      const grouped = {};
+      elements.forEach((el) => {
+        if (!grouped[el.type]) grouped[el.type] = [];
+        grouped[el.type].push(el);
+      });
+
+      content += `## Elements by Type\n\n`;
+      Object.keys(grouped).forEach((type) => {
+        const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
+        content += `### ${typeLabel}s (${grouped[type].length})\n\n`;
+        grouped[type].forEach((el, index) => {
+          content += `${index + 1}. ${el.label || 'Unlabeled'} - Position: (${Math.round(el.x)}, ${Math.round(el.y)})\n`;
+        });
+        content += `\n`;
+      });
+
+      // JSON export
+      const jsonContent = JSON.stringify({
+        exportDate: new Date().toISOString(),
+        canvasSize: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT },
+        elements: elements,
+        summary: {
+          total: elements.length,
+          byType: Object.fromEntries(
+            Object.entries(grouped).map(([k, v]) => [k, v.length])
+          ),
+        }
+      }, null, 2);
+
+      Alert.alert(
+        'Export Diagram',
+        'Choose export format:',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Markdown (.md)', 
+            onPress: () => saveAndShareFile(content, 'interaction_diagram.md', 'text/markdown')
+          },
+          { 
+            text: 'JSON (.json)', 
+            onPress: () => saveAndShareFile(jsonContent, 'interaction_diagram.json', 'application/json')
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Export error:', error);
+      Alert.alert('Error', 'Failed to export diagram');
+    }
+  };
+
+  const saveAndShareFile = async (content, filename, mimeType) => {
+    try {
+      const fileUri = FileSystem.documentDirectory + filename;
+      await FileSystem.writeAsStringAsync(fileUri, content);
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: mimeType,
+          dialogTitle: 'Export Diagram',
+        });
+      } else {
+        Alert.alert('Success', `File saved to: ${fileUri}`);
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      Alert.alert('Error', 'Failed to share file');
+    }
   };
 
   return (

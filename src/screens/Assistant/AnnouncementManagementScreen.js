@@ -132,7 +132,6 @@ export default function AnnouncementManagementScreen({ navigation }) {
         content: content.trim(),
         priority,
         created_by: user?.id,
-        views: 0,
       });
       
       setModalVisible(false);
