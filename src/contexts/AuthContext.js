@@ -150,8 +150,18 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = async () => {
-    await supabase.auth.signOut();
-    setUserProfile(null);
+    try {
+      setUser(null);
+      setUserProfile(null);
+      setSession(null);
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still clear local state even if signOut fails
+      setUser(null);
+      setUserProfile(null);
+      setSession(null);
+    }
   };
 
   const refreshUserProfile = async () => {
