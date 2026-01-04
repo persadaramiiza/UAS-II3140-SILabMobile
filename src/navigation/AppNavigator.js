@@ -77,10 +77,7 @@ function StudentHomeTabs() {
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.text.secondary,
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-        },
+        tabBarShowLabel: false,
         tabBarIcon: ({ color, size, focused }) => {
           let iconName;
           if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
@@ -117,10 +114,7 @@ function AssistantHomeTabs() {
         },
         tabBarActiveTintColor: '#0F2A71',
         tabBarInactiveTintColor: colors.text.secondary,
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-        },
+        tabBarShowLabel: false,
         tabBarIcon: ({ color, size, focused }) => {
           let iconName;
           if (route.name === 'Dashboard') iconName = focused ? 'home' : 'home-outline';

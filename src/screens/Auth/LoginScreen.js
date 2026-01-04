@@ -8,7 +8,8 @@ import {
   KeyboardAvoidingView, 
   Platform,
   TouchableOpacity,
-  Image
+  Image,
+  ImageBackground
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../services/supabase';
@@ -115,15 +116,20 @@ export default function LoginScreen({ navigation }) {
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      {/* Decorative Background - Absolute Position */}
+      <View style={styles.decorativeBackground}>
+        <Image 
+          source={require('../../../assets/login-illustration.png')} 
+          style={styles.decorationImage}
+          resizeMode="cover"
+        />
+      </View>
+
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Decorative Elements */}
-        <View style={styles.decorativeTopLeft} />
-        <View style={styles.decorativeTopRight} />
-
         {/* Logo and Header */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
@@ -138,8 +144,8 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.subtitle}>Sign in to continue to SILab Suite</Text>
         </View>
 
-        {/* Login Form */}
-        <View style={styles.formContainer}>
+        {/* Login Form Card */}
+        <View style={styles.formCard}>
           {/* Email Input */}
           <Input
             label="Email"
@@ -162,7 +168,7 @@ export default function LoginScreen({ navigation }) {
             rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
             onRightIconPress={() => setShowPassword(!showPassword)}
             disabled={loading}
-            style={{ marginBottom: spacing.xs }}
+            style={{ marginBottom: 0 }}
           />
 
           {/* Forgot Password */}
@@ -179,12 +185,14 @@ export default function LoginScreen({ navigation }) {
             variant="primary"
             size="large"
             fullWidth
-            style={{ marginTop: spacing.md }}
+            style={{ marginTop: spacing.lg }}
           />
 
           {/* Divider */}
           <View style={styles.divider}>
+            <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
           </View>
 
           {/* Google Sign In Button */}
@@ -196,42 +204,42 @@ export default function LoginScreen({ navigation }) {
             <Ionicons name="logo-google" size={20} color="#4285F4" />
             <Text style={styles.googleButtonText}>Sign in with Google</Text>
           </TouchableOpacity>
+        </View>
 
-          {/* Quick Demo Access */}
-          <View style={styles.demoSection}>
-            <Text style={styles.demoTitle}>Quick Demo Access</Text>
-            <View style={styles.demoButtons}>
-              <TouchableOpacity 
-                style={styles.demoButton}
-                onPress={() => handleDemoLogin('student')}
-                disabled={loading}
-              >
-                <Text style={styles.demoButtonText}>Student</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.demoButton}
-                onPress={() => handleDemoLogin('assistant')}
-                disabled={loading}
-              >
-                <Text style={styles.demoButtonText}>Assistant</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.demoButton}
-                onPress={() => handleDemoLogin('admin')}
-                disabled={loading}
-              >
-                <Text style={styles.demoButtonText}>Admin</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Register Link */}
-          <View style={styles.registerContainer}>
-            <Text style={styles.registerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.registerLink}>Register here</Text>
+        {/* Quick Demo Access */}
+        <View style={styles.demoSection}>
+          <Text style={styles.demoTitle}>Quick Demo Access</Text>
+          <View style={styles.demoButtons}>
+            <TouchableOpacity 
+              style={styles.demoButton}
+              onPress={() => handleDemoLogin('student')}
+              disabled={loading}
+            >
+              <Text style={styles.demoButtonText}>Student</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.demoButton}
+              onPress={() => handleDemoLogin('assistant')}
+              disabled={loading}
+            >
+              <Text style={styles.demoButtonText}>Assistant</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.demoButton}
+              onPress={() => handleDemoLogin('admin')}
+              disabled={loading}
+            >
+              <Text style={styles.demoButtonText}>Admin</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Register Link */}
+        <View style={styles.registerContainer}>
+          <Text style={styles.registerText}>Don't have an account? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+            <Text style={styles.registerLink}>Register here</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -243,105 +251,110 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+  decorativeBackground: {
+    position: 'absolute',
+    left: -80,
+    top: -96,
+    width: 298,
+    height: 529,
+    zIndex: 0,
+  },
+  decorationImage: {
+    width: '100%',
+    height: '100%',
+  },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: spacing.xl,
-    paddingTop: 60,
-    paddingBottom: spacing.xxl,
-  },
-  decorativeTopLeft: {
-    position: 'absolute',
-    top: -50,
-    left: -30,
-    width: 200,
-    height: 200,
-    backgroundColor: '#FFF4E6',
-    borderRadius: 100,
-    opacity: 0.6,
-  },
-  decorativeTopRight: {
-    position: 'absolute',
-    top: 30,
-    right: -40,
-    width: 150,
-    height: 150,
-    backgroundColor: '#FFE5CC',
-    borderRadius: 75,
-    opacity: 0.5,
+    paddingTop: 64,
+    paddingBottom: spacing.xl,
+    position: 'relative',
+    zIndex: 1,
   },
   header: {
     alignItems: 'center',
-    marginBottom: spacing.xxl,
-    marginTop: spacing.xl,
+    marginBottom: spacing.lg,
   },
   logoContainer: {
-    width: 100,
-    height: 100,
-    marginBottom: spacing.lg,
+    width: 80,
+    height: 80,
+    marginBottom: spacing.md,
   },
   logo: {
     width: '100%',
     height: '100%',
   },
   welcomeTitle: {
-    fontSize: 28,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: spacing.xs,
+    color: '#111111',
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#6B6B6B',
     textAlign: 'center',
   },
-  formContainer: {
-    flex: 1,
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    borderRadius: 16,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
+    marginTop: spacing.xs,
     marginBottom: spacing.md,
   },
   forgotPasswordText: {
-    fontSize: 14,
-    color: '#1E3A8A',
-    fontWeight: '600',
+    fontSize: 16,
+    color: '#0F2A71',
+    fontWeight: '400',
   },
   divider: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: spacing.xl,
+    marginVertical: spacing.lg,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E8E8E8',
   },
   dividerText: {
-    fontSize: 14,
-    color: '#9CA3AF',
+    fontSize: 16,
+    color: '#6B6B6B',
+    marginHorizontal: spacing.md,
   },
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    borderRadius: borderRadius.md,
-    height: 52,
-    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    borderRadius: 12,
+    height: 48,
   },
   googleButtonText: {
     fontSize: 16,
-    color: '#1F2937',
-    fontWeight: '600',
+    color: '#111111',
+    fontWeight: '400',
     marginLeft: spacing.sm,
   },
   demoSection: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
+    backgroundColor: '#F3F3F3',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: spacing.md,
   },
   demoTitle: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 16,
+    color: '#6B6B6B',
     textAlign: 'center',
-    marginBottom: spacing.md,
+    marginBottom: 12,
   },
   demoButtons: {
     flexDirection: 'row',
@@ -350,17 +363,18 @@ const styles = StyleSheet.create({
   demoButton: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
+    borderRadius: 8,
+    height: 40,
+    justifyContent: 'center',
     marginHorizontal: 4,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E8E8',
   },
   demoButtonText: {
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '600',
+    fontSize: 16,
+    color: '#0F2A71',
+    fontWeight: '400',
   },
   registerContainer: {
     flexDirection: 'row',
@@ -369,12 +383,12 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   registerText: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 12,
+    color: '#6B6B6B',
   },
   registerLink: {
-    fontSize: 14,
-    color: '#1E3A8A',
-    fontWeight: '700',
+    fontSize: 12,
+    color: '#0F2A71',
+    fontWeight: '600',
   },
 });

@@ -51,6 +51,10 @@ export default function Input({
           editable={!disabled}
           multiline={multiline}
           numberOfLines={numberOfLines}
+          autoCorrect={false}
+          autoComplete="off"
+          textContentType="none"
+          underlineColorAndroid="transparent"
           {...props}
         />
         

@@ -8,7 +8,8 @@ import {
   KeyboardAvoidingView, 
   Platform,
   TouchableOpacity,
-  Image
+  Image,
+  ImageBackground
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../services/supabase';
@@ -54,7 +55,7 @@ export default function RegisterScreen({ navigation }) {
         Alert.alert('Registration Failed', error.message);
       } else {
         Alert.alert('Success!', 'Your account has been created. Please login.', [
-          { text: 'OK', onPress: () => navigation.goBack() }
+          { text: 'OK', onPress: () => navigation.navigate('Login') }
         ]);
       }
     } catch (err) {
@@ -69,6 +70,15 @@ export default function RegisterScreen({ navigation }) {
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      {/* Decorative Background - Absolute Position */}
+      <View style={styles.decorativeBackground}>
+        <Image 
+          source={require('../../../assets/login-illustration.png')} 
+          style={styles.decorationImage}
+          resizeMode="cover"
+        />
+      </View>
+
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -96,8 +106,8 @@ export default function RegisterScreen({ navigation }) {
           <Text style={styles.subtitle}>Register to access SILab Suite</Text>
         </View>
 
-        {/* Registration Form */}
-        <View style={styles.formContainer}>
+        {/* Registration Form Card */}
+        <View style={styles.formCard}>
           <Input
             label="Full Name"
             placeholder="Persada R"
@@ -163,19 +173,21 @@ export default function RegisterScreen({ navigation }) {
             fullWidth
             style={{ marginTop: spacing.md }}
           />
+        </View>
 
-          {/* Divider */}
-          <View style={styles.divider}>
-            <Text style={styles.dividerText}>or</Text>
-          </View>
+        {/* Divider */}
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>or</Text>
+          <View style={styles.dividerLine} />
+        </View>
 
-          {/* Sign In Link */}
-          <View style={styles.signInContainer}>
-            <Text style={styles.signInText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Text style={styles.signInLink}>Sign in</Text>
-            </TouchableOpacity>
-          </View>
+      {/* Sign In Link */}
+        <View style={styles.signInContainer}>
+          <Text style={styles.signInText}>Already have an account? </Text>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.signInLink}>Sign in</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -187,11 +199,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+  decorativeBackground: {
+    position: 'absolute',
+    left: -80,
+    top: -96,
+    width: 298,
+    height: 529,
+    zIndex: 0,
+  },
+  decorationImage: {
+    width: '100%',
+    height: '100%',
+  },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: spacing.xl,
     paddingTop: 60,
-    paddingBottom: spacing.xxl,
+    paddingBottom: spacing.xl,
+    position: 'relative',
+    zIndex: 1,
   },
   backButton: {
     width: 40,
@@ -201,52 +227,63 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: spacing.xxl,
+    marginBottom: spacing.lg,
   },
   logoContainer: {
-    width: 100,
-    height: 100,
-    marginBottom: spacing.lg,
+    width: 80,
+    height: 80,
+    marginBottom: spacing.md,
   },
   logo: {
     width: '100%',
     height: '100%',
   },
   title: {
-    fontSize: 28,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: spacing.xs,
+    color: '#111111',
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#6B6B6B',
     textAlign: 'center',
   },
-  formContainer: {
-    flex: 1,
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    borderRadius: 16,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
   divider: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: spacing.xl,
+    marginVertical: spacing.lg,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E8E8E8',
   },
   dividerText: {
-    fontSize: 14,
-    color: '#9CA3AF',
+    fontSize: 16,
+    color: '#6B6B6B',
+    marginHorizontal: spacing.md,
   },
   signInContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: spacing.md,
   },
   signInText: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 12,
+    color: '#6B6B6B',
   },
   signInLink: {
-    fontSize: 14,
-    color: '#1E3A8A',
-    fontWeight: '700',
+    fontSize: 12,
+    color: '#0F2A71',
+    fontWeight: '600',
   },
 });
