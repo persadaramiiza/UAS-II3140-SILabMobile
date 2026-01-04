@@ -23,6 +23,7 @@ export default function ProfileEditScreen({ navigation }) {
   
   const [name, setName] = useState('');
   const [studentId, setStudentId] = useState('');
+  const [department, setDepartment] = useState('');
   const [phone, setPhone] = useState('');
   const [bio, setBio] = useState('');
   const [picture, setPicture] = useState('');
@@ -34,6 +35,7 @@ export default function ProfileEditScreen({ navigation }) {
     if (userProfile) {
       setName(userProfile.name || '');
       setStudentId(userProfile.student_id || '');
+      setDepartment(userProfile.department || '');
       setPhone(userProfile.phone || '');
       setBio(userProfile.bio || '');
       setPicture(userProfile.picture || '');
@@ -117,6 +119,7 @@ export default function ProfileEditScreen({ navigation }) {
       const updates = {
         name,
         student_id: studentId,
+        department,
         phone,
         bio,
         picture,
@@ -237,6 +240,21 @@ export default function ProfileEditScreen({ navigation }) {
                 ? "Make sure this is correct. It cannot be changed later." 
                 : "Student ID cannot be changed"}
             </Text>
+          </View>
+
+          {/* Major/Jurusan */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Major / Jurusan</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="school-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={department}
+                onChangeText={setDepartment}
+                placeholder="e.g. Teknik Informatika"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
           </View>
 
           {/* Phone Number */}

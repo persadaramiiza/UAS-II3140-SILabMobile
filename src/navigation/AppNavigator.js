@@ -326,7 +326,7 @@ export default function AppNavigator() {
             options={{ headerShown: false }} 
           />
 
-          <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} options={{ headerShown: true, title: 'Edit Profile' }} />
+          <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} options={{ headerShown: false }} />
           <Stack.Screen name="AssignmentDetail" component={AssignmentDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="QuizRoom" component={QuizRoomScreen} options={{ headerShown: true, title: 'Mengerjakan Quiz' }} />
           <Stack.Screen name="QuizReview" component={QuizReviewScreen} options={{ headerShown: true, title: 'Review Quiz' }} />

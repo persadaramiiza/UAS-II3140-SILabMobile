@@ -54,9 +54,8 @@ export default function RegisterScreen({ navigation }) {
       if (error) {
         Alert.alert('Registration Failed', error.message);
       } else {
-        Alert.alert('Success!', 'Your account has been created. Please login.', [
-          { text: 'OK', onPress: () => navigation.navigate('Login') }
-        ]);
+        Alert.alert('Success!', 'Your account has been created successfully.');
+        // AuthContext will automatically handle the navigation when session is created
       }
     } catch (err) {
       Alert.alert('Registration Error', err.message || 'An unexpected error occurred.');

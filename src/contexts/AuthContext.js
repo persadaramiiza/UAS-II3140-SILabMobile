@@ -40,6 +40,7 @@ export function AuthProvider({ children }) {
             email: user?.email,
             username: username,
             name: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User',
+            student_id: user?.user_metadata?.student_id || null,
             role: user?.user_metadata?.role || 'student'
           };
           

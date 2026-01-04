@@ -53,8 +53,12 @@ export default function Input({
           numberOfLines={numberOfLines}
           autoCorrect={false}
           autoComplete="off"
+          autoCompleteType="off"
           textContentType="none"
           underlineColorAndroid="transparent"
+          spellCheck={false}
+          autoCapitalize="none"
+          keyboardType={props.keyboardType || "default"}
           {...props}
         />
         
