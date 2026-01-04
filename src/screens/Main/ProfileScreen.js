@@ -6,20 +6,11 @@ import { Button, Card } from '../../components';
 import { colors, spacing, typography, shadow } from '../../theme';
 
 export default function ProfileScreen({ navigation }) {
-  const { user, userProfile, logout, loading } = useAuth();
+  const { user, userProfile, logout } = useAuth();
 
   // Don't show loading if user is logged out (will navigate to login)
   if (!user) {
     return null;
-  }
-
-  if (!userProfile && !loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Memuat profil...</Text>
-      </View>
-    );
   }
 
   if (!userProfile) {
