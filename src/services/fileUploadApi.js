@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
+import { decodeBase64 } from '../utils/helpers';
 
 /**
  * Pick a file using DocumentPicker
@@ -29,12 +30,10 @@ export async function pickFile() {
 }
 
 /**
- * Upload a file to Supabase Storage
- * @param {object} file - File object from pickFile()
- * @param {string} submissionId - Submission ID
- * @param {string} userId - User ID
+ * Upload a file to Supabase Storage (only storage, no database insert)
+ * @param {object} file - File object from DocumentPicker
  */
-export async function uploadSubmissionFile(file, submissionId, userId) {
+export async function uploadSubmissionFile(file) {
   try {
     if (!file || !file.uri) {
       throw new Error('No file selected');
@@ -42,51 +41,43 @@ export async function uploadSubmissionFile(file, submissionId, userId) {
 
     // Generate unique filename
     const timestamp = Date.now();
-    const fileExt = file.name.split('.').pop();
     const fileName = `${timestamp}_${file.name}`;
-    const filePath = `${userId}/${fileName}`;
+    const filePath = `submissions/${fileName}`;
 
     // Read file as base64
     const base64 = await FileSystem.readAsStringAsync(file.uri, {
-      encoding: FileSystem.EncodingType.Base64,
+      encoding: 'base64',
     });
 
-    // Convert base64 to blob
-    const arrayBuffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    // Convert base64 to ArrayBuffer
+    const arrayBuffer = Uint8Array.from(decodeBase64(base64), c => c.charCodeAt(0));
 
-    // Upload to Supabase Storage
+    // Upload to Supabase Storage (public bucket)
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('submission-files')
       .upload(filePath, arrayBuffer, {
-        contentType: file.mimeType,
+        contentType: file.mimeType || 'application/octet-stream',
         upsert: false,
       });
 
     if (uploadError) {
+      console.error('Storage upload error:', uploadError);
       throw uploadError;
     }
 
-    // Create record in submission_files table
-    const { data: fileRecord, error: recordError } = await supabase
-      .from('submission_files')
-      .insert({
-        submission_id: submissionId,
-        storage_path: filePath,
-        original_name: file.name,
-        content_type: file.mimeType,
-        size_bytes: file.size,
-        uploaded_by: userId,
-      })
-      .select()
-      .single();
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('submission-files')
+      .getPublicUrl(filePath);
 
-    if (recordError) {
-      // Rollback: delete uploaded file from storage
-      await supabase.storage.from('submission-files').remove([filePath]);
-      throw recordError;
-    }
-
-    return fileRecord;
+    // Return metadata (will be saved to DB after submission is created)
+    return {
+      url: publicUrl,
+      name: file.name,
+      size: file.size || 0,
+      path: filePath,
+      contentType: file.mimeType || 'application/octet-stream',
+    };
   } catch (error) {
     console.error('Error uploading file:', error);
     throw new Error('Failed to upload file: ' + error.message);

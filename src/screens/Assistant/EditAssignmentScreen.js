@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import { updateAssignment } from '../../services/assignmentsApi';
 import { useAuth } from '../../contexts/AuthContext';
@@ -24,24 +23,15 @@ export default function EditAssignmentScreen({ navigation, route }) {
   const [form, setForm] = useState({
     title: '',
     course: '',
-    dueDate: new Date(),
-    dueTime: new Date(),
-    maxPoints: '100',
     description: '',
   });
   const [attachments, setAttachments] = useState([]);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
 
   useEffect(() => {
     if (assignment) {
-      const dueDate = assignment.due_date ? new Date(assignment.due_date) : new Date();
       setForm({
         title: assignment.title || '',
-        course: assignment.course || '',
-        dueDate: dueDate,
-        dueTime: dueDate,
-        maxPoints: assignment.max_points?.toString() || '100',
+        course: assignment.focus || '',
         description: assignment.description || '',
       });
       
@@ -53,20 +43,6 @@ export default function EditAssignmentScreen({ navigation, route }) {
 
   const handleInputChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleDateChange = (event, selectedDate) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      handleInputChange('dueDate', selectedDate);
-    }
-  };
-
-  const handleTimeChange = (event, selectedTime) => {
-    setShowTimePicker(false);
-    if (selectedTime) {
-      handleInputChange('dueTime', selectedTime);
-    }
   };
 
   const handleAddAttachment = async () => {
@@ -99,11 +75,7 @@ export default function EditAssignmentScreen({ navigation, route }) {
       return false;
     }
     if (!form.course.trim()) {
-      Alert.alert('Error', 'Course is required');
-      return false;
-    }
-    if (!form.maxPoints || isNaN(parseInt(form.maxPoints))) {
-      Alert.alert('Error', 'Please enter valid maximum points');
+      Alert.alert('Error', 'Course/Focus is required');
       return false;
     }
     if (!form.description.trim()) {
@@ -118,18 +90,10 @@ export default function EditAssignmentScreen({ navigation, route }) {
 
     setLoading(true);
     try {
-      // Combine date and time
-      const dueDateTime = new Date(form.dueDate);
-      dueDateTime.setHours(form.dueTime.getHours());
-      dueDateTime.setMinutes(form.dueTime.getMinutes());
-
       const assignmentData = {
         title: form.title.trim(),
-        course: form.course.trim(),
-        due_date: dueDateTime.toISOString(),
-        max_points: parseInt(form.maxPoints),
+        focus: form.course.trim(),
         description: form.description.trim(),
-        updated_by: user?.id,
       };
 
       await updateAssignment(assignment.id, assignmentData);
@@ -142,21 +106,6 @@ export default function EditAssignmentScreen({ navigation, route }) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatDate = (date) => {
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  const formatTime = (time) => {
-    return time.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   return (
@@ -200,68 +149,15 @@ export default function EditAssignmentScreen({ navigation, route }) {
           />
         </View>
 
-        {/* Course */}
+        {/* Course/Focus */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Course *</Text>
+          <Text style={styles.label}>Course/Focus *</Text>
           <TextInput
             style={styles.input}
             value={form.course}
             onChangeText={(value) => handleInputChange('course', value)}
-            placeholder="Enter course name"
+            placeholder="Enter course or focus area (e.g., EA, ERD, SD)"
             placeholderTextColor="#9CA3AF"
-          />
-        </View>
-
-        {/* Due Date & Time */}
-        <View style={styles.row}>
-          <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-            <Text style={styles.label}>Due Date *</Text>
-            <TouchableOpacity
-              style={styles.input}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Text style={styles.inputText}>{formatDate(form.dueDate)}</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
-            <Text style={styles.label}>Due Time *</Text>
-            <TouchableOpacity
-              style={styles.input}
-              onPress={() => setShowTimePicker(true)}
-            >
-              <Text style={styles.inputText}>{formatTime(form.dueTime)}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {showDatePicker && (
-          <DateTimePicker
-            value={form.dueDate}
-            mode="date"
-            display="default"
-            onChange={handleDateChange}
-          />
-        )}
-
-        {showTimePicker && (
-          <DateTimePicker
-            value={form.dueTime}
-            mode="time"
-            display="default"
-            onChange={handleTimeChange}
-          />
-        )}
-
-        {/* Maximum Points */}
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Maximum Points *</Text>
-          <TextInput
-            style={styles.input}
-            value={form.maxPoints}
-            onChangeText={(value) => handleInputChange('maxPoints', value)}
-            placeholder="100"
-            placeholderTextColor="#9CA3AF"
-            keyboardType="numeric"
           />
         </View>
 

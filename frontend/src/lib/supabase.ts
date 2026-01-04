@@ -36,12 +36,9 @@ export interface Assignment {
   id: string;
   title: string;
   description: string;
-  due_date: string;
-  created_by: string;
+  focus: string;
   created_at: string;
   updated_at: string;
-  attachment_url?: string;
-  max_score: number;
 }
 
 export interface Announcement {

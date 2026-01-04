@@ -85,9 +85,9 @@ export default function AssignmentManagementScreen({ navigation }) {
         {
           id: 1,
           title: 'Database ERD Assignment',
-          course: 'Database Systems',
-          due_date: '2025-12-28',
-          status: 'active',
+          focus: 'ERD',
+          description: 'Create an ERD for a database system',
+          created_at: '2025-12-28',
         },
       ]);
       setSubmissionCounts({
@@ -133,17 +133,17 @@ export default function AssignmentManagementScreen({ navigation }) {
   };
 
   const getFilteredAssignments = () => {
-    const now = new Date();
     return assignments.filter((assignment) => {
-      const dueDate = new Date(assignment.due_date);
       const counts = submissionCounts[assignment.id] || {};
       
       if (activeTab === 'active') {
-        return dueDate >= now;
+        // Show all assignments as active since we don't have due_date
+        return true;
       } else if (activeTab === 'grading') {
         return counts.pendingGrade > 0;
       } else {
-        return dueDate < now && (counts.pendingGrade === 0 || !counts.pendingGrade);
+        // Completed = no pending grades
+        return counts.pendingGrade === 0 || !counts.pendingGrade;
       }
     });
   };
@@ -193,7 +193,7 @@ export default function AssignmentManagementScreen({ navigation }) {
         <View style={styles.cardInfo}>
           <View style={styles.infoItem}>
             <Ionicons name="calendar-outline" size={16} color="#6B7280" />
-            <Text style={styles.infoText}>Due: {formatDate(assignment.due_date)}</Text>
+            <Text style={styles.infoText}>Created: {formatDate(assignment.created_at)}</Text>
           </View>
           <View style={styles.infoItem}>
             <Ionicons name="people-outline" size={16} color="#6B7280" />

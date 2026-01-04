@@ -72,6 +72,7 @@ export default function AssignmentListScreen({ route, navigation }) {
   );
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'No deadline';
     const date = new Date(dateString);
     const today = new Date();
     const tomorrow = new Date(today);
@@ -88,7 +89,7 @@ export default function AssignmentListScreen({ route, navigation }) {
   const getAssignmentStatus = (assignment) => {
     const submission = submissions[assignment.id];
     if (!submission) return 'Active';
-    if (submission.score !== null && submission.score !== undefined) return 'Graded';
+    if (submission.grade !== null && submission.grade !== undefined) return 'Graded';
     if (submission.link || submission.notes) return 'Submitted';
     return 'Active';
   };
@@ -145,12 +146,12 @@ export default function AssignmentListScreen({ route, navigation }) {
             {/* Date */}
             <View style={styles.dateRow}>
               <Ionicons name="calendar-outline" size={14} color="#6B6B6B" />
-              <Text style={styles.dateText}>{formatDate(item.due_date)}</Text>
+              <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
             </View>
 
             {/* Score if graded */}
-            {status === 'Graded' && submission?.score !== null && (
-              <Text style={styles.scoreText}>Score: {submission.score}/100</Text>
+            {status === 'Graded' && submission?.grade !== null && (
+              <Text style={styles.scoreText}>Score: {submission.grade}/100</Text>
             )}
           </View>
 

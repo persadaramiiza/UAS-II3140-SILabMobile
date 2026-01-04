@@ -8,22 +8,25 @@ import {
   StyleSheet, 
   Alert, 
   ActivityIndicator,
-  Image
+  Image,
+  SafeAreaView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
+import { decodeBase64 } from '../../utils/helpers';
 
 export default function ProfileEditScreen({ navigation }) {
   const { user, userProfile, refreshUserProfile } = useAuth();
   
   const [name, setName] = useState('');
   const [studentId, setStudentId] = useState('');
-  const [department, setDepartment] = useState('');
   const [phone, setPhone] = useState('');
   const [bio, setBio] = useState('');
   const [picture, setPicture] = useState('');
+  const [isStudentIdEditable, setIsStudentIdEditable] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -31,23 +34,21 @@ export default function ProfileEditScreen({ navigation }) {
     if (userProfile) {
       setName(userProfile.name || '');
       setStudentId(userProfile.student_id || '');
-      setDepartment(userProfile.department || '');
       setPhone(userProfile.phone || '');
       setBio(userProfile.bio || '');
       setPicture(userProfile.picture || '');
+      setIsStudentIdEditable(!userProfile.student_id);
     }
   }, [userProfile]);
 
   const handlePickImage = async () => {
     try {
-      // Request permission
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Camera roll permission is needed to upload profile picture.');
         return;
       }
 
-      // Pick image
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -59,7 +60,6 @@ export default function ProfileEditScreen({ navigation }) {
         setUploadingImage(true);
         const imageUri = result.assets[0].uri;
         
-        // Upload to Supabase Storage
         const uploadedUrl = await uploadProfilePicture(imageUri);
         setPicture(uploadedUrl);
         Alert.alert('Success', 'Profile picture uploaded!');
@@ -77,28 +77,31 @@ export default function ProfileEditScreen({ navigation }) {
       const fileName = `${user.id}-${Date.now()}.${ext}`;
       const filePath = `profile-pictures/${fileName}`;
 
-      // Convert to blob
-      const response = await fetch(uri);
-      const blob = await response.blob();
+      // Read file as base64
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: 'base64',
+      });
 
-      // Upload to Supabase Storage
+      // Convert base64 to ArrayBuffer
+      const arrayBuffer = Uint8Array.from(decodeBase64(base64), c => c.charCodeAt(0));
+
       const { error: uploadError } = await supabase.storage
         .from('profile-pictures')
-        .upload(filePath, blob, {
-          contentType: blob.type,
+        .upload(filePath, arrayBuffer, {
+          contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
           upsert: false,
         });
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('profile-pictures')
         .getPublicUrl(filePath);
 
       return publicUrl;
     } catch (error) {
-      throw new Error('Failed to upload image: ' + error.message);
+      console.error('Upload error:', error);
+      throw error;
     }
   };
 
@@ -110,27 +113,27 @@ export default function ProfileEditScreen({ navigation }) {
 
     try {
       setLoading(true);
+      
+      const updates = {
+        name,
+        student_id: studentId,
+        phone,
+        bio,
+        picture,
+        updated_at: new Date(),
+      };
 
       const { error } = await supabase
         .from('users')
-        .update({
-          name: name.trim(),
-          student_id: studentId.trim() || null,
-          department: department.trim() || null,
-          phone: phone.trim() || null,
-          bio: bio.trim() || null,
-          picture: picture || null,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updates)
         .eq('id', user.id);
 
       if (error) throw error;
 
-      // Refresh user profile in context
       await refreshUserProfile();
-
-      Alert.alert('Success', 'Profile updated successfully!');
-      navigation.goBack();
+      Alert.alert('Success', 'Profile updated successfully', [
+        { text: 'OK', onPress: () => navigation.goBack() }
+      ]);
     } catch (error) {
       Alert.alert('Error', error.message);
     } finally {
@@ -138,151 +141,255 @@ export default function ProfileEditScreen({ navigation }) {
     }
   };
 
-  if (!userProfile) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#facc15" />
-      </View>
-    );
-  }
-
   return (
-    <ScrollView style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={handlePickImage} 
-          disabled={uploadingImage}
-          style={styles.avatarContainer}
-        >
-          {picture ? (
-            <Image source={{ uri: picture }} style={styles.avatar} />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Edit Profile</Text>
+        <TouchableOpacity onPress={handleSave} disabled={loading}>
+          {loading ? (
+            <ActivityIndicator size="small" color="#0F2A71" />
           ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Text style={styles.avatarText}>
-                {name.charAt(0).toUpperCase() || 'U'}
-              </Text>
-            </View>
+            <Ionicons name="checkmark" size={24} color="#0F2A71" />
           )}
-          <View style={styles.cameraIcon}>
-            {uploadingImage ? (
-              <ActivityIndicator size="small" color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Profile Picture Section */}
+        <View style={styles.pictureSection}>
+          <View style={styles.pictureContainer}>
+            {picture ? (
+              <Image source={{ uri: picture }} style={styles.profileImage} />
             ) : (
-              <Ionicons name="camera" size={16} color="#fff" />
+              <View style={styles.placeholderImage}>
+                <Ionicons name="person-outline" size={40} color="#FFFFFF" />
+              </View>
             )}
+            <TouchableOpacity 
+              style={styles.cameraButton} 
+              onPress={handlePickImage}
+              disabled={uploadingImage}
+            >
+              {uploadingImage ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="camera-outline" size={16} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-        <Text style={styles.hint}>Tap to change profile picture</Text>
-      </View>
+          <Text style={styles.changePhotoText}>Click camera icon to change photo</Text>
+        </View>
 
-      <View style={styles.form}>
-        <Text style={styles.label}>Name *</Text>
-        <TextInput
-          style={styles.input}
-          value={name}
-          onChangeText={setName}
-          placeholder="Enter your full name"
-          placeholderTextColor="#6b7280"
-        />
+        {/* Form Section */}
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>Basic Information</Text>
 
-        <Text style={styles.label}>Student ID / NIM</Text>
-        <TextInput
-          style={styles.input}
-          value={studentId}
-          onChangeText={setStudentId}
-          placeholder="e.g., 13521001"
-          placeholderTextColor="#6b7280"
-        />
+          {/* Full Name */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Full Name</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="person-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+                placeholder="Enter your full name"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+          </View>
 
-        <Text style={styles.label}>Department / Jurusan</Text>
-        <TextInput
-          style={styles.input}
-          value={department}
-          onChangeText={setDepartment}
-          placeholder="e.g., Teknik Informatika"
-          placeholderTextColor="#6b7280"
-        />
+          {/* Email Address (Read Only) */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email Address</Text>
+            <View style={[styles.inputContainer, styles.disabledInput]}>
+              <Ionicons name="mail-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+              <Text style={styles.inputText}>{user?.email}</Text>
+            </View>
+          </View>
 
-        <Text style={styles.label}>Phone Number</Text>
-        <TextInput
-          style={styles.input}
-          value={phone}
-          onChangeText={setPhone}
-          placeholder="e.g., +62 812-3456-7890"
-          placeholderTextColor="#6b7280"
-          keyboardType="phone-pad"
-        />
+          {/* Student ID */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Student ID</Text>
+            <View style={[styles.inputContainer, !isStudentIdEditable && styles.disabledInput]}>
+              {isStudentIdEditable ? (
+                <>
+                  <Ionicons name="card-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    value={studentId}
+                    onChangeText={setStudentId}
+                    placeholder="Enter Student ID"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="numeric"
+                  />
+                </>
+              ) : (
+                <Text style={[styles.inputText, { marginLeft: 12 }]}>{studentId || 'Not set'}</Text>
+              )}
+            </View>
+            <Text style={styles.helperText}>
+              {isStudentIdEditable 
+                ? "Make sure this is correct. It cannot be changed later." 
+                : "Student ID cannot be changed"}
+            </Text>
+          </View>
 
-        <Text style={styles.label}>Bio</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={bio}
-          onChangeText={setBio}
-          placeholder="Tell us about yourself..."
-          placeholderTextColor="#6b7280"
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-        />
+          {/* Phone Number */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Phone Number</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="call-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="+62 812 3456 7890"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="phone-pad"
+              />
+            </View>
+          </View>
 
-        <TouchableOpacity 
-          style={[styles.button, loading && { opacity: 0.5 }]}
-          onPress={handleSave}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>
-            {loading ? 'Saving...' : 'Save Changes'}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
-          disabled={loading}
-        >
-          <Text style={styles.cancelButtonText}>Cancel</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+          {/* Bio */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Bio</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="document-text-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={bio}
+                onChangeText={setBio}
+                placeholder="Tell us about yourself"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#020617' },
-  loadingContainer: { flex: 1, backgroundColor: '#020617', justifyContent: 'center', alignItems: 'center' },
-  header: { alignItems: 'center', paddingVertical: 32 },
-  avatarContainer: { position: 'relative' },
-  avatar: { width: 120, height: 120, borderRadius: 60 },
-  avatarPlaceholder: { backgroundColor: '#facc15', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 48, fontWeight: 'bold', color: '#000' },
-  cameraIcon: { 
-    position: 'absolute', 
-    bottom: 0, 
-    right: 0, 
-    backgroundColor: '#3b82f6', 
-    width: 36, 
-    height: 36, 
-    borderRadius: 18,
+  container: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#020617'
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
-  hint: { color: '#6b7280', fontSize: 12, marginTop: 12 },
-  form: { padding: 20 },
-  label: { color: '#9ca3af', fontSize: 14, marginBottom: 8, fontWeight: '500' },
-  input: { 
-    backgroundColor: '#111827', 
-    color: '#fff', 
-    borderWidth: 1, 
-    borderColor: '#374151', 
-    borderRadius: 8, 
-    padding: 14, 
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  backButton: {
+    padding: 4,
+  },
+  content: {
+    flex: 1,
+  },
+  pictureSection: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    backgroundColor: '#FFFFFF',
     marginBottom: 16,
-    fontSize: 16
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
-  textArea: { height: 100, textAlignVertical: 'top', paddingTop: 14 },
-  button: { backgroundColor: '#facc15', padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#000', fontWeight: 'bold', fontSize: 16 },
-  cancelButton: { padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 12 },
-  cancelButtonText: { color: '#9ca3af', fontSize: 16 }
+  pictureContainer: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+  profileImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  placeholderImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#0F2A71',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#1F2937',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  changePhotoText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  formSection: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 20,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 48,
+  },
+  disabledInput: {
+    backgroundColor: '#E5E7EB',
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: '#111827',
+  },
+  inputText: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 6,
+  },
 });

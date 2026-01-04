@@ -44,34 +44,31 @@ export default function HomeScreen({ navigation }) {
       const threeDaysFromNow = new Date();
       threeDaysFromNow.setDate(now.getDate() + 3);
 
-      // Filter for future assignments
-      const activeAssignments = (assignmentsData || []).filter(a => {
-        if (!a.due_date) return false;
-        const dueDate = new Date(a.due_date);
-        return dueDate > now;
-      });
+      // Get all assignments (due_date doesn't exist in schema, so show all)
+      const activeAssignments = (assignmentsData || []).slice();
 
-      // Sort by due date (nearest first)
-      activeAssignments.sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+      // Sort by created_at (newest first)
+      activeAssignments.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-      // Set Next Deadline
+      // Set Next Task (most recent assignment)
       if (activeAssignments.length > 0) {
         const next = activeAssignments[0];
         setNextDeadline({
           id: next.id,
           course: next.focus || 'General',
           title: next.title,
-          dueDate: formatDateTime(next.due_date),
+          dueDate: formatDateTime(next.created_at),
           status: 'Active'
         });
       } else {
         setNextDeadline(null);
       }
 
-      // Count Due Soon
+      // Count assignments created in last 3 days as "recent"
       const dueSoonCount = activeAssignments.filter(a => {
-        const d = new Date(a.due_date);
-        return d <= threeDaysFromNow;
+        const d = new Date(a.created_at);
+        const daysAgo = (now - d) / (1000 * 60 * 60 * 24);
+        return daysAgo <= 3;
       }).length;
 
       // Count Quiz Today

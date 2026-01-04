@@ -16,7 +16,7 @@ export function useAssignments() {
       const { data, error } = await supabase
         .from('assignments')
         .select('*')
-        .order('due_date', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setAssignments(data || []);

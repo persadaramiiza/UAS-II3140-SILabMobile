@@ -15,6 +15,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { getAllSubmissions, getSubmissionFiles } from '../../services/assignmentsApi';
 import { supabase } from '../../services/supabase';
 
 const { width } = Dimensions.get('window');
@@ -35,92 +36,35 @@ export default function GradeSubmissionsScreen({ navigation, route }) {
       setLoading(true);
       
       if (!assignment?.id) {
-        // Mock data
-        setSubmissions([
-          {
-            id: 1,
-            student_name: 'Ahmad Rizki',
-            student_nim: '13520001',
-            submitted_at: '2025-12-27T14:30:00',
-            files: ['ERD_Diagram.pdf', 'Database_Schema.sql'],
-            grade: null,
-          },
-          {
-            id: 2,
-            student_name: 'Siti Nurhaliza',
-            student_nim: '13520002',
-            submitted_at: '2025-12-27T16:45:00',
-            files: ['ERD_Assignment.pdf'],
-            grade: null,
-          },
-          {
-            id: 3,
-            student_name: 'Budi Santoso',
-            student_nim: '13520003',
-            submitted_at: '2025-12-26T10:30:00',
-            files: ['Final_ERD.pdf'],
-            grade: 85,
-            feedback: 'Good work!',
-          },
-        ]);
+        Alert.alert('Error', 'No assignment selected');
+        navigation.goBack();
         return;
       }
 
-      const { data, error } = await supabase
-        .from('submissions')
-        .select(`
-          *,
-          profiles:student_id (
-            name,
-            nim
-          )
-        `)
-        .eq('assignment_id', assignment.id)
-        .order('submitted_at', { ascending: false });
+      const data = await getAllSubmissions(assignment.id);
 
-      if (error) throw error;
+      // Load files for each submission
+      const submissionsWithFiles = await Promise.all(
+        (data || []).map(async (sub) => {
+          const files = await getSubmissionFiles(sub.id);
+          return {
+            id: sub.id,
+            student_name: sub.student_name || sub.profiles?.name || 'Unknown Student',
+            student_nim: sub.profiles?.student_id || 'N/A',
+            submitted_at: sub.submitted_at,
+            link: sub.link,
+            notes: sub.notes,
+            grade: sub.grade,
+            files: files || [],
+          };
+        })
+      );
 
-      const formattedSubmissions = (data || []).map((sub) => ({
-        id: sub.id,
-        student_name: sub.profiles?.name || 'Unknown Student',
-        student_nim: sub.profiles?.nim || 'N/A',
-        submitted_at: sub.submitted_at,
-        files: sub.files || ['submission.pdf'],
-        grade: sub.grade,
-        feedback: sub.feedback,
-      }));
-
-      setSubmissions(formattedSubmissions);
+      setSubmissions(submissionsWithFiles);
     } catch (error) {
       console.error('Failed to load submissions:', error);
-      // Mock data fallback
-      setSubmissions([
-        {
-          id: 1,
-          student_name: 'Ahmad Rizki',
-          student_nim: '13520001',
-          submitted_at: '2025-12-27T14:30:00',
-          files: ['ERD_Diagram.pdf', 'Database_Schema.sql'],
-          grade: null,
-        },
-        {
-          id: 2,
-          student_name: 'Siti Nurhaliza',
-          student_nim: '13520002',
-          submitted_at: '2025-12-27T16:45:00',
-          files: ['ERD_Assignment.pdf'],
-          grade: null,
-        },
-        {
-          id: 3,
-          student_name: 'Budi Santoso',
-          student_nim: '13520003',
-          submitted_at: '2025-12-26T10:30:00',
-          files: ['Final_ERD.pdf'],
-          grade: 85,
-          feedback: 'Good work!',
-        },
-      ]);
+      Alert.alert('Error', 'Failed to load submissions: ' + error.message);
+      setSubmissions([]);
     } finally {
       setLoading(false);
     }
@@ -141,7 +85,7 @@ export default function GradeSubmissionsScreen({ navigation, route }) {
   const openGradeModal = (submission) => {
     setSelectedSubmission(submission);
     setGrade(submission.grade?.toString() || '');
-    setFeedback(submission.feedback || '');
+    setFeedback(submission.notes || '');
     setGradeModalVisible(true);
   };
 
@@ -153,24 +97,21 @@ export default function GradeSubmissionsScreen({ navigation, route }) {
 
     setSubmitting(true);
     try {
-      if (assignment?.id && selectedSubmission?.id) {
-        const { error } = await supabase
-          .from('submissions')
-          .update({
-            grade: parseInt(grade),
-            feedback: feedback.trim() || null,
-            graded_at: new Date().toISOString(),
-          })
-          .eq('id', selectedSubmission.id);
+      const { error } = await supabase
+        .from('submissions')
+        .update({
+          grade: parseInt(grade),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedSubmission.id);
 
-        if (error) throw error;
-      }
+      if (error) throw error;
 
       // Update local state
       setSubmissions((prev) =>
         prev.map((sub) =>
           sub.id === selectedSubmission.id
-            ? { ...sub, grade: parseInt(grade), feedback: feedback.trim() }
+            ? { ...sub, grade: parseInt(grade) }
             : sub
         )
       );
@@ -182,7 +123,7 @@ export default function GradeSubmissionsScreen({ navigation, route }) {
       Alert.alert('Success', 'Grade submitted successfully');
     } catch (error) {
       console.error('Failed to submit grade:', error);
-      Alert.alert('Error', 'Failed to submit grade');
+      Alert.alert('Error', 'Failed to submit grade: ' + error.message);
     } finally {
       setSubmitting(false);
     }
@@ -200,13 +141,44 @@ export default function GradeSubmissionsScreen({ navigation, route }) {
     });
   };
 
-  const handleDownloadFile = (filename) => {
-    // In a real app, this would trigger a file download
-    Alert.alert('Download', `Downloading ${filename}...`);
+  const handleOpenLink = (url) => {
+    if (!url) {
+      Alert.alert('No Link', 'No submission link provided');
+      return;
+    }
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Error', 'Could not open link');
+    });
+  };
+
+  const handleDownloadFile = (file) => {
+    if (!file.storage_path) {
+      Alert.alert('Error', 'File path not found');
+      return;
+    }
+    
+    // Get public URL and open it
+    const { data: { publicUrl } } = supabase.storage
+      .from('submission-files')
+      .getPublicUrl(file.storage_path);
+    
+    console.log('Opening file URL:', publicUrl);
+    
+    Linking.openURL(publicUrl).catch((err) => {
+      console.error('Open URL error:', err);
+      Alert.alert('Error', 'Could not open file');
+    });
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes) return 'Unknown size';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
   const SubmissionCard = ({ submission }) => {
-    const isGraded = submission.grade !== null;
+    const isGraded = submission.grade !== null && submission.grade !== undefined;
 
     return (
       <View style={styles.card}>
@@ -226,29 +198,57 @@ export default function GradeSubmissionsScreen({ navigation, route }) {
           )}
         </View>
 
-        <View style={styles.filesSection}>
-          <Text style={styles.filesLabel}>Submitted Files:</Text>
-          {submission.files.map((file, index) => (
+        {/* Uploaded Files */}
+        {submission.files && submission.files.length > 0 && (
+          <View style={styles.filesSection}>
+            <Text style={styles.filesLabel}>Uploaded Files ({submission.files.length}):</Text>
+            {submission.files.map((file, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.fileItem}
+                onPress={() => handleDownloadFile(file)}
+              >
+                <View style={styles.fileIcon}>
+                  <Ionicons name="document-attach" size={20} color="#0F2A71" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fileName} numberOfLines={1}>{file.original_name}</Text>
+                  <Text style={styles.fileSize}>{formatFileSize(file.size_bytes)}</Text>
+                </View>
+                <Ionicons name="download-outline" size={20} color="#3B82F6" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Submission Link */}
+        {submission.link && (
+          <View style={styles.filesSection}>
+            <Text style={styles.filesLabel}>Submission Link:</Text>
             <TouchableOpacity
-              key={index}
               style={styles.fileItem}
-              onPress={() => handleDownloadFile(file)}
+              onPress={() => handleOpenLink(submission.link)}
             >
               <View style={styles.fileIcon}>
-                <Ionicons name="document-outline" size={20} color="#0F2A71" />
+                <Ionicons name="link-outline" size={20} color="#0F2A71" />
               </View>
-              <Text style={styles.fileName}>{file}</Text>
-              <Ionicons name="download-outline" size={20} color="#6B7280" />
+              <Text style={styles.fileName} numberOfLines={1}>{submission.link}</Text>
+              <Ionicons name="open-outline" size={20} color="#6B7280" />
             </TouchableOpacity>
-          ))}
-        </View>
+          </View>
+        )}
+
+        {/* Notes */}
+        {submission.notes && (
+          <View style={styles.notesSection}>
+            <Text style={styles.filesLabel}>Notes:</Text>
+            <Text style={styles.notesText}>{submission.notes}</Text>
+          </View>
+        )}
 
         {isGraded ? (
           <View style={styles.gradeInfo}>
             <Text style={styles.gradeLabel}>Grade: {submission.grade}/100</Text>
-            {submission.feedback && (
-              <Text style={styles.feedbackText}>Feedback: {submission.feedback}</Text>
-            )}
           </View>
         ) : (
           <TouchableOpacity
@@ -640,5 +640,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  notesSection: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+  },
+  notesText: {
+    fontSize: 13,
+    color: '#374151',
+    marginTop: 4,
+    lineHeight: 20,
+  },
+  fileSize: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginTop: 2,
   },
 });

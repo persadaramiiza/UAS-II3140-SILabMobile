@@ -1,17 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { getAssignment, getSubmissions } from '../../services/assignmentsApi';
+import * as DocumentPicker from 'expo-document-picker';
+import { getAssignment, getSubmissions, createOrUpdateSubmission } from '../../services/assignmentsApi';
+import { uploadSubmissionFile } from '../../services/fileUploadApi';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../services/supabase';
 import { colors, spacing, borderRadius, shadow } from '../../theme';
 
 export default function AssignmentDetailScreen({ route, navigation }) {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { assignmentId } = route.params;
   const [detail, setDetail] = useState(null);
   const [submission, setSubmission] = useState(null);
   const [loading, setLoading] = useState(true);
   const [descriptionExpanded, setDescriptionExpanded] = useState(true);
+  const [submissionExpanded, setSubmissionExpanded] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [submissionLink, setSubmissionLink] = useState('');
+  const [submissionNotes, setSubmissionNotes] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -25,7 +33,12 @@ export default function AssignmentDetailScreen({ route, navigation }) {
 
       const userSubmissions = await getSubmissions(assignmentId, user.id);
       if (userSubmissions && userSubmissions.length > 0) {
-        setSubmission(userSubmissions[0]);
+        const sub = userSubmissions[0];
+        setSubmission(sub);
+        setSubmissionLink(sub.link || '');
+        setSubmissionNotes(sub.notes || '');
+        // Files will be loaded separately if needed
+        setUploadedFiles([]);
       }
     } catch (err) {
       Alert.alert('Error', err.message);
@@ -37,7 +50,7 @@ export default function AssignmentDetailScreen({ route, navigation }) {
 
   const getAssignmentStatus = () => {
     if (!submission) return 'Active';
-    if (submission.score !== null && submission.score !== undefined) return 'Graded';
+    if (submission.grade !== null && submission.grade !== undefined) return 'Graded';
     if (submission.link || submission.notes) return 'Submitted';
     return 'Active';
   };
@@ -60,6 +73,122 @@ export default function AssignmentDetailScreen({ route, navigation }) {
     }
   };
 
+  const handlePickFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const file = result.assets[0];
+        Alert.alert(
+          'Upload File',
+          `Upload ${file.name}?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Upload',
+              onPress: async () => {
+                try {
+                  setSubmitting(true);
+                  // Upload file to storage only (no DB insert yet)
+                  const fileData = await uploadSubmissionFile(file);
+                  setUploadedFiles(prev => [
+                    ...prev,
+                    { 
+                      name: fileData.name, 
+                      url: fileData.url, 
+                      size: fileData.size, 
+                      path: fileData.path,
+                      contentType: fileData.contentType 
+                    }
+                  ]);
+                  Alert.alert('Success', 'File uploaded successfully!');
+                } catch (error) {
+                  console.error('Upload error:', error);
+                  Alert.alert('Error', 'Failed to upload file');
+                } finally {
+                  setSubmitting(false);
+                }
+              }
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('File picker error:', error);
+    }
+  };
+
+  const handleRemoveFile = (index) => {
+    Alert.alert(
+      'Remove File',
+      'Are you sure you want to remove this file?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+          }
+        }
+      ]
+    );
+  };
+
+  const handleSubmit = async () => {
+    if (!submissionLink.trim() && uploadedFiles.length === 0 && !submissionNotes.trim()) {
+      Alert.alert('Error', 'Please provide at least a link, file, or notes for your submission');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      
+      const submissionData = {
+        student_name: userProfile?.name || user?.email || 'Unknown',
+        link: submissionLink.trim() || null,
+        notes: submissionNotes.trim() || null,
+        submitted_at: new Date().toISOString(),
+      };
+
+      const result = await createOrUpdateSubmission(assignmentId, user.id, submissionData);
+      
+      // INSERT file metadata to submission_files table AFTER submission is created
+      if (uploadedFiles.length > 0 && result?.id) {
+        for (const file of uploadedFiles) {
+          if (file.path) {
+            const { error: insertError } = await supabase
+              .from('submission_files')
+              .insert({
+                submission_id: result.id,
+                storage_path: file.path,
+                original_name: file.name,
+                content_type: file.contentType || 'application/octet-stream',
+                size_bytes: file.size || 0,
+                uploaded_by: user.id,
+              });
+            
+            if (insertError) {
+              console.error('Failed to save file metadata:', insertError);
+            }
+          }
+        }
+      }
+      
+      Alert.alert('Success', 'Assignment submitted successfully!', [
+        { text: 'OK', onPress: () => loadData() }
+      ]);
+    } catch (error) {
+      console.error('Submission error:', error);
+      Alert.alert('Error', 'Failed to submit assignment. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -70,7 +199,7 @@ export default function AssignmentDetailScreen({ route, navigation }) {
   }
 
   const status = getAssignmentStatus();
-  const dueDate = detail?.due_date || detail?.dueDate;
+  const displayDate = detail?.created_at;
 
   // Parse resources if available (assuming JSON string or array)
   const resources = Array.isArray(detail?.resources) 
@@ -102,7 +231,7 @@ export default function AssignmentDetailScreen({ route, navigation }) {
         <View style={styles.metaRow}>
           <Ionicons name="calendar-outline" size={16} color="#6B7280" />
           <Text style={styles.metaText}>
-            {dueDate ? `Tomorrow, ${new Date(dueDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}` : '-'}
+            {displayDate ? `Created: ${new Date(displayDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : '-'}
           </Text>
         </View>
 
@@ -148,6 +277,129 @@ export default function AssignmentDetailScreen({ route, navigation }) {
             </TouchableOpacity>
           ))}
         </View>
+        )}
+
+        {/* Submission Section */}
+        {status !== 'Graded' && (
+          <TouchableOpacity
+            style={styles.section}
+            onPress={() => setSubmissionExpanded(!submissionExpanded)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Your Submission</Text>
+              <Ionicons
+                name={submissionExpanded ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color="#1F2937"
+              />
+            </View>
+
+            {submissionExpanded && (
+              <View style={styles.submissionForm}>
+                {/* Link Input */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Link (GitHub, Drive, etc.)</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={submissionLink}
+                    onChangeText={setSubmissionLink}
+                    placeholder="https://..."
+                    placeholderTextColor="#9CA3AF"
+                    editable={status !== 'Graded'}
+                  />
+                </View>
+
+                {/* File Upload */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Upload Files</Text>
+                  <TouchableOpacity
+                    style={styles.uploadButton}
+                    onPress={handlePickFile}
+                    disabled={submitting || status === 'Graded'}
+                  >
+                    <Ionicons name="cloud-upload-outline" size={20} color="#3B82F6" />
+                    <Text style={styles.uploadButtonText}>Choose File</Text>
+                  </TouchableOpacity>
+                  
+                  {uploadedFiles.length > 0 && (
+                    <View style={styles.filesList}>
+                      {uploadedFiles.map((file, index) => (
+                        <View key={index} style={styles.fileItem}>
+                          <Ionicons name="document-attach" size={20} color="#3B82F6" />
+                          <Text style={styles.fileName} numberOfLines={1}>{file.name}</Text>
+                          {status !== 'Graded' && (
+                            <TouchableOpacity onPress={() => handleRemoveFile(index)}>
+                              <Ionicons name="close-circle" size={20} color="#EF4444" />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                {/* Notes Input */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Notes (Optional)</Text>
+                  <TextInput
+                    style={[styles.textInput, styles.textArea]}
+                    value={submissionNotes}
+                    onChangeText={setSubmissionNotes}
+                    placeholder="Add any notes or comments..."
+                    placeholderTextColor="#9CA3AF"
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                    editable={status !== 'Graded'}
+                  />
+                </View>
+
+                {/* Submit Button */}
+                {status !== 'Graded' && (
+                  <TouchableOpacity
+                    style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+                    onPress={handleSubmit}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                        <Text style={styles.submitButtonText}>
+                          {status === 'Submitted' ? 'Update Submission' : 'Submit Assignment'}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {/* Graded Submission Display */}
+        {status === 'Graded' && submission && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Your Submission</Text>
+            <View style={styles.gradeBox}>
+              <Text style={styles.gradeLabel}>Score</Text>
+              <Text style={styles.gradeValue}>{submission.grade}/100</Text>
+            </View>
+            {submission.link && (
+              <View style={styles.submissionDetail}>
+                <Text style={styles.detailLabel}>Link:</Text>
+                <Text style={styles.detailValue}>{submission.link}</Text>
+              </View>
+            )}
+            {submission.notes && (
+              <View style={styles.submissionDetail}>
+                <Text style={styles.detailLabel}>Notes:</Text>
+                <Text style={styles.detailValue}>{submission.notes}</Text>
+              </View>
+            )}
+          </View>
         )}
       </ScrollView>
     </View>
@@ -246,4 +498,110 @@ const styles = StyleSheet.create({
   resourceInfo: { flex: 1, marginLeft: spacing.md },
   resourceName: { fontSize: 14, fontWeight: '500', color: '#1F2937' },
   resourceSize: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
+  submissionForm: {
+    marginTop: spacing.md,
+  },
+  inputGroup: {
+    marginBottom: spacing.md,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: spacing.xs,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    fontSize: 14,
+    color: '#1F2937',
+    backgroundColor: '#FFFFFF',
+  },
+  textArea: {
+    minHeight: 100,
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    borderRadius: borderRadius.md,
+    borderStyle: 'dashed',
+    padding: spacing.md,
+    backgroundColor: '#EFF6FF',
+  },
+  uploadButtonText: {
+    fontSize: 14,
+    color: '#3B82F6',
+    fontWeight: '600',
+    marginLeft: spacing.xs,
+  },
+  filesList: {
+    marginTop: spacing.sm,
+  },
+  fileItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
+    marginBottom: spacing.xs,
+  },
+  fileName: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1F2937',
+    marginLeft: spacing.xs,
+  },
+  submitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3B82F6',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginTop: spacing.sm,
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
+  },
+  submitButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: spacing.xs,
+  },
+  gradeBox: {
+    backgroundColor: '#DCFCE7',
+    padding: spacing.lg,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  gradeLabel: {
+    fontSize: 14,
+    color: '#166534',
+    marginBottom: spacing.xs,
+  },
+  gradeValue: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#15803D',
+  },
+  submissionDetail: {
+    marginBottom: spacing.sm,
+  },
+  detailLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#1F2937',
+  },
 });
