@@ -12,9 +12,13 @@ import {
   ImageBackground
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
 import { supabase } from '../../services/supabase';
 import { Button, Input } from '../../components';
 import { colors, typography, spacing, borderRadius } from '../../theme';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState('');
@@ -59,6 +63,90 @@ export default function RegisterScreen({ navigation }) {
       }
     } catch (err) {
       Alert.alert('Registration Error', err.message || 'An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setLoading(true);
+      
+      // Use Supabase callback URL - let it handle the redirect
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          skipBrowserRedirect: true, // Important for mobile
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+
+      if (error) {
+        Alert.alert('Google Sign-In Failed', error.message);
+        return;
+      }
+
+      if (data?.url) {
+        console.log('Opening Google OAuth URL...');
+        
+        // Open browser and let user complete sign in
+        const result = await WebBrowser.openAuthSessionAsync(
+          data.url,
+          null // Let browser handle redirect naturally
+        );
+
+        console.log('WebBrowser result:', result);
+
+        if (result.type === 'success' || result.type === 'dismiss' || result.type === 'cancel') {
+          // Browser closed, check if session was created
+          // Give Supabase a moment to process the callback
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Try to get current session
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (session) {
+            console.log('Google Sign-In successful! Session created.');
+            // AuthContext will detect the session change
+          } else {
+            // If no session, try to extract tokens from URL if available
+            if (result.type === 'success' && result.url) {
+              const url = result.url;
+              const hashParams = new URLSearchParams(url.split('#')[1] || '');
+              const queryParams = new URLSearchParams(url.split('?')[1]?.split('#')[0] || '');
+              
+              const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
+              const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
+
+              if (accessToken) {
+                const { error: setError } = await supabase.auth.setSession({
+                  access_token: accessToken,
+                  refresh_token: refreshToken || '',
+                });
+
+                if (setError) {
+                  console.error('Session error:', setError);
+                  Alert.alert('Session Error', setError.message);
+                } else {
+                  console.log('Google Sign-In successful via manual token!');
+                }
+              } else {
+                console.log('Sign-in process completed but no session detected');
+                Alert.alert('Info', 'Please check your connection and try again');
+              }
+            } else {
+              console.log('Browser closed without completing sign-in');
+            }
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.error('Google Sign-In error:', error);
+      Alert.alert('Google Sign-In Error', error.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -172,16 +260,26 @@ export default function RegisterScreen({ navigation }) {
             fullWidth
             style={{ marginTop: spacing.md }}
           />
+
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Google Sign In Button */}
+          <TouchableOpacity 
+            style={styles.googleButton}
+            onPress={handleGoogleSignIn}
+            disabled={loading}
+          >
+            <Ionicons name="logo-google" size={20} color="#4285F4" />
+            <Text style={styles.googleButtonText}>Sign up with Google</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Divider */}
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-      {/* Sign In Link */}
+        {/* Sign In Link */}
         <View style={styles.signInContainer}>
           <Text style={styles.signInText}>Already have an account? </Text>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -270,6 +368,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6B6B6B',
     marginHorizontal: spacing.md,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    borderRadius: 12,
+    height: 48,
+    marginTop: spacing.sm,
+  },
+  googleButtonText: {
+    fontSize: 16,
+    color: '#111111',
+    fontWeight: '400',
+    marginLeft: spacing.sm,
   },
   signInContainer: {
     flexDirection: 'row',

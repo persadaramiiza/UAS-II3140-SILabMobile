@@ -37,7 +37,29 @@ export default function AssignmentDetailScreen({ route, navigation }) {
         setSubmission(sub);
         setSubmissionLink(sub.link || '');
         setSubmissionNotes(sub.notes || '');
-        // Files will be loaded separately if needed
+        
+        // Load submission files from database
+        const { data: files, error: filesError } = await supabase
+          .from('submission_files')
+          .select('*')
+          .eq('submission_id', sub.id)
+          .order('created_at', { ascending: false });
+        
+        if (!filesError && files) {
+          // Map database files to uploadedFiles format
+          const mappedFiles = files.map(file => ({
+            id: file.id,
+            name: file.original_name,
+            path: file.storage_path,
+            contentType: file.content_type,
+            size: file.size_bytes,
+            uploadedAt: file.created_at,
+          }));
+          setUploadedFiles(mappedFiles);
+        } else {
+          setUploadedFiles([]);
+        }
+      } else {
         setUploadedFiles([]);
       }
     } catch (err) {
@@ -50,9 +72,10 @@ export default function AssignmentDetailScreen({ route, navigation }) {
 
   const getAssignmentStatus = () => {
     if (!submission) return 'Active';
+    // Jika ada grade, berarti sudah di-grade
     if (submission.grade !== null && submission.grade !== undefined) return 'Graded';
-    if (submission.link || submission.notes) return 'Submitted';
-    return 'Active';
+    // Jika ada submission (tapi belum di-grade), berarti sudah submit
+    return 'Submitted';
   };
 
   const getStatusColor = (status) => {

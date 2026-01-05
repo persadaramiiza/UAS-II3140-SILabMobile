@@ -58,7 +58,7 @@ export default function AssignmentListScreen({ route, navigation }) {
       let isActive = true;
       
       const load = async () => {
-        if (isActive) {
+        if (isActive && user) {
           await loadAssignments();
         }
       };
@@ -68,7 +68,7 @@ export default function AssignmentListScreen({ route, navigation }) {
       return () => {
         isActive = false;
       };
-    }, [filterFocus])
+    }, [filterFocus, user?.id])
   );
 
   const formatDate = (dateString) => {
@@ -89,9 +89,10 @@ export default function AssignmentListScreen({ route, navigation }) {
   const getAssignmentStatus = (assignment) => {
     const submission = submissions[assignment.id];
     if (!submission) return 'Active';
+    // Jika ada grade, berarti sudah di-grade
     if (submission.grade !== null && submission.grade !== undefined) return 'Graded';
-    if (submission.link || submission.notes) return 'Submitted';
-    return 'Active';
+    // Jika ada submission (tapi belum di-grade), berarti sudah submit
+    return 'Submitted';
   };
 
   const filteredAssignments = assignments.filter((assignment) => {

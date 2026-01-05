@@ -152,9 +152,12 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
+      // Clear local state first for immediate UI update
       setUser(null);
       setUserProfile(null);
       setSession(null);
+      
+      // Then sign out from Supabase
       await supabase.auth.signOut();
     } catch (error) {
       console.error('Logout error:', error);

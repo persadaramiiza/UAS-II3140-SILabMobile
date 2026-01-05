@@ -22,6 +22,66 @@ import { formatDate } from '../../utils/helpers';
 
 const { width } = Dimensions.get('window');
 
+// Form Input Component (pindahkan keluar dari component utama)
+const FormInput = React.memo(({ label, value, onChangeText, placeholder, secureTextEntry, multiline, keyboardType }) => (
+  <View style={styles.formGroup}>
+    <Text style={styles.formLabel}>{label}</Text>
+    <TextInput
+      style={[styles.formInput, multiline && styles.formInputMultiline]}
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor="#9CA3AF"
+      secureTextEntry={secureTextEntry}
+      multiline={multiline}
+      numberOfLines={multiline ? 3 : 1}
+      keyboardType={keyboardType || 'default'}
+    />
+  </View>
+));
+
+// Role Selector Component (pindahkan keluar dari component utama)
+const RoleSelector = React.memo(({ selectedRole, onSelectRole }) => {
+  const getRoleBadgeStyle = (role) => {
+    switch (role) {
+      case 'admin':
+        return { bg: '#FEE2E2', text: '#DC2626' };
+      case 'assistant':
+        return { bg: '#DBEAFE', text: '#2563EB' };
+      case 'student':
+        return { bg: '#FEF3C7', text: '#F59E0B' };
+      default:
+        return { bg: '#F3F4F6', text: '#6B7280' };
+    }
+  };
+
+  return (
+    <View style={styles.formGroup}>
+      <Text style={styles.formLabel}>Role</Text>
+      <View style={styles.roleSelector}>
+        {['student', 'assistant', 'admin'].map((role) => {
+          const style = getRoleBadgeStyle(role);
+          const isSelected = selectedRole === role;
+          return (
+            <TouchableOpacity
+              key={role}
+              style={[
+                styles.roleSelectorOption,
+                isSelected && { backgroundColor: style.bg, borderColor: style.text },
+              ]}
+              onPress={() => onSelectRole(role)}
+            >
+              <Text style={[styles.roleSelectorOptionText, isSelected && { color: style.text }]}>
+                {role.charAt(0).toUpperCase() + role.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+});
+
 export default function UserManagementScreen({ navigation }) {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -360,38 +420,36 @@ export default function UserManagementScreen({ navigation }) {
     try {
       setSaving(true);
 
-      // Note: Changing another user's password requires admin privileges
-      // In production, this should be done through a secure backend API
-      // For now, we'll use Supabase auth admin API if available
-      const { error } = await supabase.auth.admin.updateUserById(
-        selectedUser.id,
-        { password: newPassword }
-      );
+      // Call Supabase RPC function to change password
+      const { data, error } = await supabase.rpc('admin_change_user_password', {
+        user_id: selectedUser.id,
+        new_password: newPassword
+      });
 
       if (error) {
-        // If admin API is not available, show appropriate message
-        if (error.message.includes('not authorized') || error.message.includes('admin')) {
-          Alert.alert(
-            'Info',
-            'Password reset request sent. The user will receive an email to reset their password.',
-            [{ text: 'OK' }]
-          );
-          // As fallback, send password reset email
-          await supabase.auth.resetPasswordForEmail(selectedUser.email);
-        } else {
-          throw error;
-        }
-      } else {
-        Alert.alert('Success', 'Password changed successfully');
+        throw error;
       }
 
+      Alert.alert('Success', 'Password changed successfully for ' + selectedUser.name);
       setPasswordModalVisible(false);
       setNewPassword('');
       setConfirmPassword('');
       setSelectedUser(null);
     } catch (error) {
       console.error('Failed to change password:', error);
-      Alert.alert('Error', error.message || 'Failed to change password');
+      
+      // Provide helpful error messages
+      if (error.message.includes('Only admins')) {
+        Alert.alert('Error', 'You do not have permission to change passwords. Admin role required.');
+      } else if (error.message.includes('does not exist')) {
+        Alert.alert(
+          'Setup Required',
+          'The password change function is not set up yet. Please check ADMIN_PASSWORD_SETUP.md for instructions.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Error', error.message || 'Failed to change password');
+      }
     } finally {
       setSaving(false);
     }
@@ -484,52 +542,6 @@ export default function UserManagementScreen({ navigation }) {
       </View>
     );
   };
-
-  // Form Input Component
-  const FormInput = ({ label, value, onChangeText, placeholder, secureTextEntry, multiline, keyboardType }) => (
-    <View style={styles.formGroup}>
-      <Text style={styles.formLabel}>{label}</Text>
-      <TextInput
-        style={[styles.formInput, multiline && styles.formInputMultiline]}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor="#9CA3AF"
-        secureTextEntry={secureTextEntry}
-        multiline={multiline}
-        numberOfLines={multiline ? 3 : 1}
-        keyboardType={keyboardType || 'default'}
-      />
-    </View>
-  );
-
-  // Role Selector Component
-  const RoleSelector = ({ selectedRole, onSelectRole }) => (
-    <View style={styles.formGroup}>
-      <Text style={styles.formLabel}>Role</Text>
-      <View style={styles.roleSelector}>
-        {['student', 'assistant', 'admin'].map((role) => {
-          const style = getRoleBadgeStyle(role);
-          const isSelected = selectedRole === role;
-          return (
-            <TouchableOpacity
-              key={role}
-              style={[
-                styles.roleSelectorOption,
-                isSelected && { backgroundColor: style.bg, borderColor: style.text },
-              ]}
-              onPress={() => onSelectRole(role)}
-            >
-              <Ionicons name={style.icon} size={16} color={isSelected ? style.text : '#6B7280'} />
-              <Text style={[styles.roleSelectorText, isSelected && { color: style.text }]}>
-                {role.charAt(0).toUpperCase() + role.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </View>
-  );
 
   return (
     <View style={styles.container}>

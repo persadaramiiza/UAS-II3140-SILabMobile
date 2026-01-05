@@ -172,7 +172,11 @@ export default function AssignmentManagementScreen({ navigation }) {
         <View style={styles.cardHeader}>
           <View style={styles.cardTitleContainer}>
             <Text style={styles.cardTitle}>{assignment.title}</Text>
-            <Text style={styles.cardSubtitle}>{assignment.course || 'Database Systems'}</Text>
+            {(assignment.course || assignment.focus) && (
+              <Text style={styles.cardSubtitle}>
+                {assignment.course || `Focus: ${assignment.focus}`}
+              </Text>
+            )}
           </View>
           <View style={styles.cardActions}>
             <TouchableOpacity
