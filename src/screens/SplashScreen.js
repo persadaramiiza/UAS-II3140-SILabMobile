@@ -282,63 +282,44 @@ export default function SplashScreen({ onFinish }) {
       >
         {/* Frame 1: Multiple floating papers */}
         <Animated.View style={[styles.frameContainer, { opacity: frame1Opacity }]}>
-          {/* Top-left large paper */}
           <Image 
-            source={require('../../assets/login-illustration.png')}
-            style={styles.paperTopLeft}
-            resizeMode="cover"
-          />
-          
-          {/* Bottom-right paper */}
-          <Image 
-            source={require('../../assets/login-illustration.png')}
-            style={styles.paperBottomRight}
-            resizeMode="cover"
-          />
-          
-          {/* Center-right small paper */}
-          <Image 
-            source={require('../../assets/login-illustration.png')}
-            style={styles.paperCenterRight}
+            source={require('../../assets/Frame 1.png')}
+            style={styles.frame1Image}
             resizeMode="cover"
           />
         </Animated.View>
 
         {/* Frame 2: Single rotating paper */}
         <Animated.View style={[styles.frameContainer, { opacity: frame2Opacity }]}>
-          <View style={styles.frame2Container}>
-            <Image 
-              source={require('../../assets/login-illustration.png')}
-              style={styles.paperRotating}
-              resizeMode="cover"
-            />
-          </View>
+          <Image 
+            source={require('../../assets/Frame 2.png')}
+            style={styles.frame2Image}
+            resizeMode="cover"
+          />
         </Animated.View>
 
         {/* Frame 3: Paper with text */}
         <Animated.View style={[styles.frameContainer, { opacity: frame3Opacity }]}>
-          <View style={styles.frame3Container}>
-            <Image 
-              source={require('../../assets/login-illustration.png')}
-              style={styles.paperWithText}
-              resizeMode="cover"
-            />
-          </View>
-          <Text style={styles.frame3Text}>
-            <Text style={styles.frame3TextNormal}>Hello, </Text>
-            <Text style={styles.frame3TextBold}>IT explorers!</Text>
-          </Text>
+          <Image 
+            source={require('../../assets/Frame 3.png')}
+            style={styles.frame3Image}
+            resizeMode="cover"
+          />
         </Animated.View>
 
         {/* Frame 4: Door scene with logo and text */}
         <Animated.View style={[styles.frameContainer, { opacity: frame4Opacity }]}>
           <Animated.View 
             style={[styles.doorImageContainer, { transform: [{ scale: frame4Scale }] }]}>
-            <View style={styles.doorPlaceholder} />
+            <Image 
+              source={require('../../assets/header-bg.png')}
+              style={styles.doorImage}
+              resizeMode="cover"
+            />
           </Animated.View>
           
           <Animated.Image 
-            source={require('../../assets/logo.png')}
+            source={require('../../assets/splash-logo-door.png')}
             style={[
               styles.frame4Logo,
               {
@@ -365,8 +346,16 @@ export default function SplashScreen({ onFinish }) {
 
         {/* Frame 5: Door scene with bigger logo, NO text */}
         <Animated.View style={[styles.frameContainer, { opacity: frame5Opacity }]}>          
+          <View style={styles.frame5DoorContainer}>
+            <Image 
+              source={require('../../assets/header-bg.png')}
+              style={styles.doorImage}
+              resizeMode="cover"
+            />
+          </View>
+          
           <Animated.Image 
-            source={require('../../assets/logo.png')}
+            source={require('../../assets/splash-logo-door.png')}
             style={[
               styles.frame5Logo,
               {
@@ -380,8 +369,16 @@ export default function SplashScreen({ onFinish }) {
 
         {/* Frame 6: Final logo card with SILab Suite */}
         <Animated.View style={[styles.frame6Container, { opacity: frame6Opacity }]}>          
+          <View style={styles.frame6BackgroundContainer}>
+            <Image 
+              source={require('../../assets/splash-frame6.png')}
+              style={styles.frame6Background}
+              resizeMode="cover"
+            />
+          </View>
+          
           <Animated.Image 
-            source={require('../../assets/logo.png')}
+            source={require('../../assets/splash-logo-final.png')}
             style={[
               styles.frame6Logo,
               {
@@ -448,76 +445,25 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   
-  // Frame 1: Multiple papers
-  paperTopLeft: {
+  // Frame 1
+  frame1Image: {
     position: 'absolute',
-    width: 501,
-    height: 890,
-    left: -108,
-    top: -274,
-  },
-  paperBottomRight: {
-    position: 'absolute',
-    width: 400,
-    height: 600,
-    right: -150,
-    bottom: -200,
-    transform: [{ rotate: '15deg' }],
-  },
-  paperCenterRight: {
-    position: 'absolute',
-    width: 200,
-    height: 300,
-    right: -50,
-    top: 250,
-    transform: [{ rotate: '-25deg' }],
+    width: '100%',
+    height: '100%',
   },
   
-  // Frame 2: Rotating paper
-  frame2Container: {
+  // Frame 2
+  frame2Image: {
     position: 'absolute',
-    left: -99,
-    top: 175,
-    width: 668,
-    height: 735,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  paperRotating: {
-    width: 363,
-    height: 644,
-    transform: [{ rotate: '324.689deg' }],
+    width: '100%',
+    height: '100%',
   },
   
-  // Frame 3: Paper with text
-  frame3Container: {
+  // Frame 3
+  frame3Image: {
     position: 'absolute',
-    left: -61,
-    top: 230,
-    width: 680,
-    height: 430,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  paperWithText: {
-    width: 363,
-    height: 644,
-    transform: [{ rotate: '276.174deg' }],
-  },
-  frame3Text: {
-    position: 'absolute',
-    left: 78,
-    top: 298,
-    width: 238,
-    fontSize: 17,
-    lineHeight: 24,
-    color: '#FFFFFF',
-  },
-  frame3TextNormal: {
-    fontWeight: '400',
-  },
-  frame3TextBold: {
-    fontWeight: '700',
+    width: '100%',
+    height: '100%',
   },
   
   // Frame 4: Door with logo and text
@@ -530,10 +476,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  doorPlaceholder: {
+  doorImage: {
     width: '100%',
     height: '100%',
-    backgroundColor: 'rgba(251, 191, 36, 0.1)',
   },
   frame4Logo: {
     position: 'absolute',
@@ -560,12 +505,19 @@ const styles = StyleSheet.create({
   },
   
   // Frame 5: Door with bigger logo
+  frame5DoorContainer: {
+    position: 'absolute',
+    width: 660,
+    height: 1174,
+    left: 0,
+    top: 0,
+  },
   frame5Logo: {
     position: 'absolute',
     width: 111,
     height: 127,
-    left: width / 2 - 55.5,
-    top: height / 2 - 63.5,
+    left: 113,
+    top: 399,
   },
   
   // Frame 6: Final screen
@@ -579,22 +531,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  frame6BackgroundContainer: {
+    position: 'absolute',
+    width: 478,
+    height: 849,
+    left: '50%',
+    top: 3,
+    marginLeft: -239, // half of width
+  },
+  frame6Background: {
+    width: '100%',
+    height: '100%',
+  },
   frame6Logo: {
     width: 130,
     height: 134,
+    position: 'absolute',
+    left: 132,
+    top: 210,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 4,
-    marginBottom: 20,
   },
   frame6Title: {
     fontSize: 20,
     fontWeight: '700',
     lineHeight: 24,
     textAlign: 'center',
-    marginBottom: 8,
+    position: 'absolute',
+    left: 197,
+    top: 363,
+    width: 238,
+    marginLeft: -119, // half of width
   },
   frame6TitleYellow: {
     color: '#FBBC04',
@@ -608,6 +578,11 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     textAlign: 'center',
     color: '#FFFFFF',
+    position: 'absolute',
+    left: 197,
+    top: 394,
+    width: 238,
+    marginLeft: -119, // half of width
   },
   gradientOverlay: {
     position: 'absolute',
