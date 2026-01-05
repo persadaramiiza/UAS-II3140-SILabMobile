@@ -1,9 +1,11 @@
 import { motion } from 'motion/react';
 import { useState, useEffect } from 'react';
-import imgElementPaper from "figma:asset/be073e5aa3e2ca42e0dd11c29ef94997023107e0.png";
-import img31 from "figma:asset/a00b1dd9baefaa1e5be49afe583112751ee604fc.png";
+import frame1 from "../assets/Frame 1.png";
+import frame2 from "../assets/Frame 2.png";
+import frame3 from "../assets/Frame 3.png";
+import headerBg from "../assets/header-bg.png";
+import splashFrame6 from "../assets/splash-frame6.png";
 import imgLogo1 from "figma:asset/20619c80be32ed6ee7d8acd2e7300f68a2e4b115.png";
-import img21 from "figma:asset/e3d56f9eeaca9f22d72bb65fed91c4ea34b45060.png";
 import imgLogo11 from "figma:asset/c7331baf757474afb91e9105f759afebcb9348c1.png";
 
 export default function SplashScreen() {
@@ -37,89 +39,43 @@ export default function SplashScreen() {
       {/* Frame 1: Multiple floating papers */}
       <motion.div
         className="absolute inset-0"
-        style={{ 
-          background: "linear-gradient(167.726deg, rgb(17, 17, 17) 4.56%, rgb(15, 42, 113) 121.64%)" 
-        }}
         initial={{ opacity: 1 }}
         animate={{ opacity: frame >= 2 ? 0 : 1 }}
         transition={{ duration: 0.8, ease: "easeInOut" }}
       >
-        {/* Top-left large paper */}
-        <div className="absolute h-[890px] left-[-108px] top-[-274px] w-[501px]">
-          <img 
-            alt="" 
-            className="absolute inset-0 max-w-none object-50%-50% object-cover pointer-events-none size-full" 
-            src={imgElementPaper} 
-          />
-        </div>
-
-        {/* Bottom-right paper */}
-        <div className="absolute h-[600px] right-[-150px] bottom-[-200px] w-[400px]">
-          <img 
-            alt="" 
-            className="absolute inset-0 max-w-none object-50%-50% object-cover pointer-events-none size-full rotate-[15deg]" 
-            src={imgElementPaper} 
-          />
-        </div>
-
-        {/* Center-right small paper */}
-        <div className="absolute h-[300px] right-[-50px] top-[250px] w-[200px]">
-          <img 
-            alt="" 
-            className="absolute inset-0 max-w-none object-50%-50% object-cover pointer-events-none size-full rotate-[-25deg]" 
-            src={imgElementPaper} 
-          />
-        </div>
+        <img 
+          alt="" 
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none" 
+          src={frame1} 
+        />
       </motion.div>
 
       {/* Frame 2: Single rotating paper */}
       <motion.div
         className="absolute inset-0"
-        style={{ 
-          background: "linear-gradient(167.726deg, rgb(17, 17, 17) 4.56%, rgb(15, 42, 113) 121.64%)" 
-        }}
         initial={{ opacity: 0 }}
         animate={{ opacity: frame === 2 ? 1 : frame > 2 ? 0 : 0 }}
         transition={{ duration: 0.8, ease: "easeInOut" }}
       >
-        <div className="absolute flex h-[735.456px] items-center justify-center left-[-99px] top-[175px] w-[668.345px]">
-          <div className="h-[644.481px] relative w-[362.521px] rotate-[324.689deg]">
-            <img 
-              alt="" 
-              className="absolute inset-0 max-w-none object-50%-50% object-cover pointer-events-none size-full" 
-              src={imgElementPaper} 
-            />
-          </div>
-        </div>
+        <img 
+          alt="" 
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none" 
+          src={frame2} 
+        />
       </motion.div>
 
       {/* Frame 3: Paper with text */}
       <motion.div
         className="absolute inset-0"
-        style={{ 
-          background: "linear-gradient(167.726deg, rgb(17, 17, 17) 4.56%, rgb(15, 42, 113) 121.64%)" 
-        }}
         initial={{ opacity: 0 }}
         animate={{ opacity: frame === 3 ? 1 : frame > 3 ? 0 : 0 }}
         transition={{ duration: 0.8, ease: "easeInOut" }}
       >
-        <div className="absolute flex h-[429.727px] items-center justify-center left-[-61px] top-[230px] w-[679.73px]">
-          <div className="h-[644.481px] relative w-[362.521px] rotate-[276.174deg]">
-            <img 
-              alt="" 
-              className="absolute inset-0 max-w-none object-50%-50% object-cover pointer-events-none size-full" 
-              src={imgElementPaper} 
-            />
-          </div>
-        </div>
-
-        <p 
-          className="absolute left-[78px] top-[298px] w-[238px] text-white"
-          style={{ fontSize: '17px', lineHeight: '24px' }}
-        >
-          <span>Hello, </span>
-          <span style={{ fontWeight: 700 }}>IT explorers!</span>
-        </p>
+        <img 
+          alt="" 
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none" 
+          src={frame3} 
+        />
       </motion.div>
 
       {/* Frame 4: Door scene with logo and text */}
@@ -141,7 +97,7 @@ export default function SplashScreen() {
           <img 
             alt="" 
             className="absolute inset-0 max-w-none object-50%-50% object-cover pointer-events-none size-full" 
-            src={img31} 
+            src={headerBg} 
           />
         </motion.div>
         
@@ -184,7 +140,7 @@ export default function SplashScreen() {
           <img 
             alt="" 
             className="absolute inset-0 max-w-none object-50%-50% object-cover pointer-events-none size-full" 
-            src={img31} 
+            src={headerBg} 
           />
         </div>
         
@@ -213,7 +169,7 @@ export default function SplashScreen() {
           <img 
             alt="" 
             className="absolute inset-0 max-w-none object-50%-50% object-cover pointer-events-none size-full" 
-            src={img21} 
+            src={splashFrame6} 
           />
         </div>
         
