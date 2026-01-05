@@ -1,0 +1,1226 @@
+openapi: 3.0.3
+info:
+  title: SILab Suite API
+  description: |
+    API documentation for SILab Suite mobile application.
+    This application uses Supabase as backend-as-a-service (BaaS).
+    
+    **Authentication**: All endpoints require Bearer token authentication via Supabase Auth.
+    
+    **Base URL**: `https://[your-project].supabase.co/rest/v1`
+  version: 1.0.0
+  contact:
+    name: SILab Suite Development Team
+    email: support@silabsuite.com
+
+servers:
+  - url: https://[your-project].supabase.co/rest/v1
+    description: Supabase REST API (Production)
+  - url: http://localhost:54321/rest/v1
+    description: Supabase Local Development
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Announcements
+    description: Announcement CRUD operations
+  - name: Assignments
+    description: Assignment and submission management
+  - name: Quizzes
+    description: Quiz topic, question, and result management
+  - name: Users
+    description: User profile and management
+  - name: Files
+    description: File upload and storage operations
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase JWT token from authentication
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: User unique identifier
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+          enum: [student, assistant, admin]
+        student_id:
+          type: string
+          nullable: true
+        major:
+          type: string
+          nullable: true
+        photo_url:
+          type: string
+          format: uri
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Announcement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 255
+        content:
+          type: string
+        created_by:
+          type: string
+          format: uuid
+          description: User ID of creator
+        views:
+          type: integer
+          default: 0
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Assignment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        focus:
+          type: string
+          enum: [requirements, erd, interaction, architecture, quiz]
+          description: Assignment category
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+        max_score:
+          type: integer
+          default: 100
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Submission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        assignment_id:
+          type: string
+          format: uuid
+        student_id:
+          type: string
+          format: uuid
+        content:
+          type: string
+          nullable: true
+          description: Submission text content
+        file_url:
+          type: string
+          format: uri
+          nullable: true
+        grade:
+          type: object
+          nullable: true
+          properties:
+            score:
+              type: number
+            feedback:
+              type: string
+        submitted_at:
+          type: string
+          format: date-time
+        graded_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    QuizTopic:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+          description: Can store JSON metadata (start_time, end_time, duration, course)
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    QuizQuestion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        topic_id:
+          type: string
+          format: uuid
+        question:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+          description: Array of answer choices
+        correct_answer:
+          type: integer
+          description: Index of correct option (0-based)
+        created_at:
+          type: string
+          format: date-time
+
+    SubmissionFile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        submission_id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        name:
+          type: string
+        size:
+          type: integer
+          description: File size in bytes
+        content_type:
+          type: string
+        path:
+          type: string
+          description: Storage path
+        created_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+        details:
+          type: string
+
+security:
+  - BearerAuth: []
+
+paths:
+  /auth/signup:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      description: Create a new user account with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - name
+                - role
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 6
+                name:
+                  type: string
+                role:
+                  type: string
+                  enum: [student, assistant, admin]
+                student_id:
+                  type: string
+                major:
+                  type: string
+      responses:
+        '200':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  session:
+                    type: object
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/signin:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  session:
+                    type: object
+                    properties:
+                      access_token:
+                        type: string
+                      refresh_token:
+                        type: string
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /announcements:
+    get:
+      tags:
+        - Announcements
+      summary: List all announcements
+      description: Retrieve all announcements with creator information, ordered by creation date
+      parameters:
+        - in: query
+          name: order
+          schema:
+            type: string
+            default: created_at.desc
+          description: Sort order
+      responses:
+        '200':
+          description: List of announcements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/Announcement'
+                    - type: object
+                      properties:
+                        users:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Announcements
+      summary: Create announcement
+      description: Create a new announcement (Assistant/Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - content
+                - created_by
+              properties:
+                title:
+                  type: string
+                content:
+                  type: string
+                created_by:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Announcement created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Announcement'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - insufficient permissions
+
+  /announcements/{id}:
+    get:
+      tags:
+        - Announcements
+      summary: Get announcement by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Announcement details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Announcement'
+        '404':
+          description: Announcement not found
+
+    patch:
+      tags:
+        - Announcements
+      summary: Update announcement
+      description: Update announcement details (Creator/Admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                content:
+                  type: string
+      responses:
+        '200':
+          description: Announcement updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Announcement'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Announcement not found
+
+    delete:
+      tags:
+        - Announcements
+      summary: Delete announcement
+      description: Delete an announcement (Creator/Admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Announcement deleted successfully
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Announcement not found
+
+  /assignments:
+    get:
+      tags:
+        - Assignments
+      summary: List assignments
+      description: Retrieve assignments, optionally filtered by focus area
+      parameters:
+        - in: query
+          name: focus
+          schema:
+            type: string
+            enum: [requirements, erd, interaction, architecture, quiz]
+          description: Filter by assignment category
+      responses:
+        '200':
+          description: List of assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Assignment'
+
+    post:
+      tags:
+        - Assignments
+      summary: Create assignment
+      description: Create a new assignment (Assistant/Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - description
+                - focus
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                focus:
+                  type: string
+                deadline:
+                  type: string
+                  format: date-time
+                max_score:
+                  type: integer
+      responses:
+        '201':
+          description: Assignment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /assignments/{id}:
+    get:
+      tags:
+        - Assignments
+      summary: Get assignment by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Assignment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+        '404':
+          description: Assignment not found
+
+    patch:
+      tags:
+        - Assignments
+      summary: Update assignment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                deadline:
+                  type: string
+                  format: date-time
+                max_score:
+                  type: integer
+      responses:
+        '200':
+          description: Assignment updated successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Assignment not found
+
+    delete:
+      tags:
+        - Assignments
+      summary: Delete assignment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Assignment deleted successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Assignment not found
+
+  /submissions:
+    get:
+      tags:
+        - Assignments
+      summary: Get submissions
+      description: Get submissions by assignment and student
+      parameters:
+        - in: query
+          name: assignment_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: student_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of submissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Submission'
+
+    post:
+      tags:
+        - Assignments
+      summary: Submit assignment
+      description: Create or update submission for an assignment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - assignment_id
+                - student_id
+              properties:
+                assignment_id:
+                  type: string
+                  format: uuid
+                student_id:
+                  type: string
+                  format: uuid
+                content:
+                  type: string
+                file_url:
+                  type: string
+      responses:
+        '201':
+          description: Submission created/updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+
+  /submissions/{id}/grade:
+    patch:
+      tags:
+        - Assignments
+      summary: Grade submission
+      description: Add grade and feedback to submission (Assistant/Admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - grade
+              properties:
+                grade:
+                  type: object
+                  required:
+                    - score
+                  properties:
+                    score:
+                      type: number
+                      minimum: 0
+                      maximum: 100
+                    feedback:
+                      type: string
+      responses:
+        '200':
+          description: Submission graded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Submission not found
+
+  /quiz_topics:
+    get:
+      tags:
+        - Quizzes
+      summary: List quiz topics
+      description: Retrieve all quiz topics with question count and submission status
+      responses:
+        '200':
+          description: List of quiz topics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/QuizTopic'
+                    - type: object
+                      properties:
+                        questionCount:
+                          type: integer
+                        isSubmitted:
+                          type: boolean
+                        score:
+                          type: number
+                          nullable: true
+
+    post:
+      tags:
+        - Quizzes
+      summary: Create quiz topic
+      description: Create a new quiz topic (Assistant/Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                  description: Can contain JSON metadata for start_time, end_time, duration, course
+      responses:
+        '201':
+          description: Quiz topic created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizTopic'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /quiz_topics/{id}:
+    get:
+      tags:
+        - Quizzes
+      summary: Get quiz topic with questions
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: select
+          schema:
+            type: string
+            default: "*,quiz_questions(*)"
+      responses:
+        '200':
+          description: Quiz topic with questions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/QuizTopic'
+                  - type: object
+                    properties:
+                      quiz_questions:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/QuizQuestion'
+        '404':
+          description: Quiz topic not found
+
+    patch:
+      tags:
+        - Quizzes
+      summary: Update quiz topic
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Quiz topic updated successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Quiz topic not found
+
+    delete:
+      tags:
+        - Quizzes
+      summary: Delete quiz topic
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Quiz topic deleted successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Quiz topic not found
+
+  /quiz_questions:
+    get:
+      tags:
+        - Quizzes
+      summary: List questions by topic
+      parameters:
+        - in: query
+          name: topic_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of quiz questions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QuizQuestion'
+
+    post:
+      tags:
+        - Quizzes
+      summary: Create quiz question
+      description: Add a new question to a quiz topic (Assistant/Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - topic_id
+                - question
+                - options
+                - correct_answer
+              properties:
+                topic_id:
+                  type: string
+                  format: uuid
+                question:
+                  type: string
+                options:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 2
+                correct_answer:
+                  type: integer
+                  minimum: 0
+      responses:
+        '201':
+          description: Quiz question created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizQuestion'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /quiz_questions/{id}:
+    patch:
+      tags:
+        - Quizzes
+      summary: Update quiz question
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                question:
+                  type: string
+                options:
+                  type: array
+                  items:
+                    type: string
+                correct_answer:
+                  type: integer
+      responses:
+        '200':
+          description: Quiz question updated successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Question not found
+
+    delete:
+      tags:
+        - Quizzes
+      summary: Delete quiz question
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Quiz question deleted successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Question not found
+
+  /users:
+    get:
+      tags:
+        - Users
+      summary: List all users
+      description: Get all users (Admin only)
+      parameters:
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum: [student, assistant, admin]
+          description: Filter by user role
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user profile
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+
+    patch:
+      tags:
+        - Users
+      summary: Update user profile
+      description: Update user information (own profile or Admin)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                student_id:
+                  type: string
+                major:
+                  type: string
+                photo_url:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: User not found
+
+  /storage/v1/object/submission-files/{path}:
+    post:
+      tags:
+        - Files
+      summary: Upload submission file
+      description: Upload a file to Supabase Storage
+      parameters:
+        - in: path
+          name: path
+          required: true
+          schema:
+            type: string
+          description: File path (e.g., submissions/{timestamp}_{filename})
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Key:
+                    type: string
+                  Id:
+                    type: string
+        '400':
+          description: Invalid file
+        '401':
+          description: Unauthorized
+
+    get:
+      tags:
+        - Files
+      summary: Download file
+      description: Get file from storage
+      security: []
+      parameters:
+        - in: path
+          name: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File not found
+
+  /submission_files:
+    get:
+      tags:
+        - Files
+      summary: List submission files
+      parameters:
+        - in: query
+          name: submission_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of files for submission
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubmissionFile'
+
+    post:
+      tags:
+        - Files
+      summary: Create file record
+      description: Create database record for uploaded file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - submission_id
+                - url
+                - name
+                - path
+              properties:
+                submission_id:
+                  type: string
+                  format: uuid
+                url:
+                  type: string
+                name:
+                  type: string
+                size:
+                  type: integer
+                content_type:
+                  type: string
+                path:
+                  type: string
+      responses:
+        '201':
+          description: File record created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmissionFile'
