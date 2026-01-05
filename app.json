@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "UAS-II3140-SILabMobile",
-    "slug": "UAS-II3140-SILabMobile",
+    "name": "SILab Mobile",
+    "slug": "SILab Mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
